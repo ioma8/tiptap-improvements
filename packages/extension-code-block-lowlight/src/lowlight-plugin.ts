@@ -1,25 +1,23 @@
 import { findChildren } from '@tiptap/core'
-import { Node as ProsemirrorNode } from '@tiptap/pm/model'
+import type { Node as ProsemirrorNode } from '@tiptap/pm/model'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 // @ts-ignore
 import highlight from 'highlight.js/lib/core'
 
 function parseNodes(nodes: any[], className: string[] = []): { text: string; classes: string[] }[] {
-  return nodes
-    .map(node => {
-      const classes = [...className, ...(node.properties ? node.properties.className : [])]
+  return nodes.flatMap(node => {
+    const classes = [...className, ...(node.properties ? node.properties.className : [])]
 
-      if (node.children) {
-        return parseNodes(node.children, classes)
-      }
+    if (node.children) {
+      return parseNodes(node.children, classes)
+    }
 
-      return {
-        text: node.value,
-        classes,
-      }
-    })
-    .flat()
+    return {
+      text: node.value,
+      classes,
+    }
+  })
 }
 
 function getHighlightNodes(result: any) {
@@ -49,9 +47,11 @@ function getDecorations({
     const language = block.node.attrs.language || defaultLanguage
     const languages = lowlight.listLanguages()
 
-    const nodes = language && (languages.includes(language) || registered(language))
-      ? getHighlightNodes(lowlight.highlight(language, block.node.textContent))
-      : getHighlightNodes(lowlight.highlightAuto(block.node.textContent))
+    const nodes =
+      language &&
+      (languages.includes(language) || registered(language) || lowlight.registered?.(language))
+        ? getHighlightNodes(lowlight.highlight(language, block.node.textContent))
+        : getHighlightNodes(lowlight.highlightAuto(block.node.textContent))
 
     parseNodes(nodes).forEach(node => {
       const to = from + node.text.length
@@ -71,7 +71,8 @@ function getDecorations({
   return DecorationSet.create(doc, decorations)
 }
 
-function isFunction(param: Function) {
+// oxlint-disable-next-lineno-unsafe-function-type
+function isFunction(param: any): param is Function {
   return typeof param === 'function'
 }
 
@@ -94,42 +95,47 @@ export function LowlightPlugin({
     key: new PluginKey('lowlight'),
 
     state: {
-      init: (_, { doc }) => getDecorations({
-        doc,
-        name,
-        lowlight,
-        defaultLanguage,
-      }),
+      init: (_, { doc }) =>
+        getDecorations({
+          doc,
+          name,
+          lowlight,
+          defaultLanguage,
+        }),
       apply: (transaction, decorationSet, oldState, newState) => {
+        if (!transaction.docChanged) {
+          return decorationSet
+        }
+
         const oldNodeName = oldState.selection.$head.parent.type.name
         const newNodeName = newState.selection.$head.parent.type.name
         const oldNodes = findChildren(oldState.doc, node => node.type.name === name)
         const newNodes = findChildren(newState.doc, node => node.type.name === name)
 
         if (
-          transaction.docChanged
+          transaction.docChanged &&
           // Apply decorations if:
           // selection includes named node,
-          && ([oldNodeName, newNodeName].includes(name)
+          ([oldNodeName, newNodeName].includes(name) ||
             // OR transaction adds/removes named node,
-            || newNodes.length !== oldNodes.length
+            newNodes.length !== oldNodes.length ||
             // OR transaction has changes that completely encapsulte a node
             // (for example, a transaction that affects the entire document).
             // Such transactions can happen during collab syncing via y-prosemirror, for example.
-            || transaction.steps.some(step => {
+            transaction.steps.some(step => {
               // @ts-ignore
               return (
                 // @ts-ignore
-                step.from !== undefined
+                step.from !== undefined &&
                 // @ts-ignore
-                && step.to !== undefined
-                && oldNodes.some(node => {
+                step.to !== undefined &&
+                oldNodes.some(node => {
                   // @ts-ignore
                   return (
                     // @ts-ignore
-                    node.pos >= step.from
+                    node.pos >= step.from &&
                     // @ts-ignore
-                    && node.pos + node.node.nodeSize <= step.to
+                    node.pos + node.node.nodeSize <= step.to
                   )
                 })
               )

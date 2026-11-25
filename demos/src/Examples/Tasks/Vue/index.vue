@@ -4,11 +4,10 @@
 
 <script>
 import Document from '@tiptap/extension-document'
+import { TaskItem, TaskList } from '@tiptap/extension-list'
 import Paragraph from '@tiptap/extension-paragraph'
-import TaskItem from '@tiptap/extension-task-item'
-import TaskList from '@tiptap/extension-task-list'
 import Text from '@tiptap/extension-text'
-import { Editor, EditorContent } from '@tiptap/vue-3'
+import { Editor, EditorContent } from '@tiptap/vue'
 
 const CustomDocument = Document.extend({
   content: 'taskList',
@@ -31,13 +30,7 @@ export default {
 
   mounted() {
     this.editor = new Editor({
-      extensions: [
-        CustomDocument,
-        Paragraph,
-        Text,
-        TaskList,
-        CustomTaskItem,
-      ],
+      extensions: [CustomDocument, Paragraph, Text, TaskList, CustomTaskItem],
       content: `
         <ul data-type="taskList">
           <li data-type="taskItem" data-checked="true">flour</li>
@@ -59,27 +52,48 @@ export default {
 </script>
 
 <style lang="scss">
-ul[data-type="taskList"] {
-  list-style: none;
-  padding: 0;
+/* Basic editor styles */
+.tiptap {
+  :first-child {
+    margin-top: 0;
+  }
 
-  li {
-    display: flex;
-    align-items: center;
+  /* List styles */
+  ul,
+  ol {
+    padding: 0 1rem;
+    margin: 1.25rem 1rem 1.25rem 0.4rem;
 
-    > label {
-      flex: 0 0 auto;
-      margin-right: 0.5rem;
-      user-select: none;
-    }
-
-    > div {
-      flex: 1 1 auto;
+    li p {
+      margin-top: 0.25em;
+      margin-bottom: 0.25em;
     }
   }
 
-  input[type="checkbox"] {
-    cursor: pointer;
+  /* Task list specific styles */
+  ul[data-type='taskList'] {
+    list-style: none;
+    margin-left: 0;
+    padding: 0;
+
+    li {
+      align-items: center;
+      display: flex;
+
+      > label {
+        flex: 0 0 auto;
+        margin-right: 0.5rem;
+        user-select: none;
+      }
+
+      > div {
+        flex: 1 1 auto;
+      }
+    }
+
+    input[type='checkbox'] {
+      cursor: pointer;
+    }
   }
 }
 </style>

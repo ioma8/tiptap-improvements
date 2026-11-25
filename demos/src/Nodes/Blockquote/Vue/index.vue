@@ -1,15 +1,27 @@
 <template>
-  <div v-if="editor">
-    <button @click="editor.chain().focus().toggleBlockquote().run()" :class="{ 'is-active': editor.isActive('blockquote') }">
-      toggleBlockquote
-    </button>
-    <button @click="editor.chain().focus().setBlockquote().run()" :disabled="!editor.can().setBlockquote()">
-      setBlockquote
-    </button>
-    <button @click="editor.chain().focus().unsetBlockquote().run()" :disabled="!editor.can().unsetBlockquote()">
-      unsetBlockquote
-    </button>
-
+  <div v-if="editor" class="container">
+    <div class="control-group">
+      <div class="button-group">
+        <button
+          @click="editor.chain().focus().toggleBlockquote().run()"
+          :class="{ 'is-active': editor.isActive('blockquote') }"
+        >
+          Toggle blockquote
+        </button>
+        <button
+          @click="editor.chain().focus().setBlockquote().run()"
+          :disabled="!editor.can().setBlockquote()"
+        >
+          Set blockquote
+        </button>
+        <button
+          @click="editor.chain().focus().unsetBlockquote().run()"
+          :disabled="!editor.can().unsetBlockquote()"
+        >
+          Unset blockquote
+        </button>
+      </div>
+    </div>
     <editor-content :editor="editor" />
   </div>
 </template>
@@ -19,7 +31,7 @@ import Blockquote from '@tiptap/extension-blockquote'
 import Document from '@tiptap/extension-document'
 import Paragraph from '@tiptap/extension-paragraph'
 import Text from '@tiptap/extension-text'
-import { Editor, EditorContent } from '@tiptap/vue-3'
+import { Editor, EditorContent } from '@tiptap/vue'
 
 export default {
   components: {
@@ -34,12 +46,7 @@ export default {
 
   mounted() {
     this.editor = new Editor({
-      extensions: [
-        Document,
-        Paragraph,
-        Text,
-        Blockquote,
-      ],
+      extensions: [Document, Paragraph, Text, Blockquote],
       content: `
           <blockquote>
             Nothing is impossible, the word itself says “I’m possible!”
@@ -58,13 +65,14 @@ export default {
 <style lang="scss">
 /* Basic editor styles */
 .tiptap {
-  > * + * {
-    margin-top: 0.75em;
+  :first-child {
+    margin-top: 0;
   }
 
   blockquote {
+    border-left: 3px solid var(--gray-3);
+    margin: 1.5rem 0;
     padding-left: 1rem;
-    border-left: 3px solid rgba(#0D0D0D, 0.1);
   }
 }
 </style>

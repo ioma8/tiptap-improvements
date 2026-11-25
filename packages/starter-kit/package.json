@@ -1,61 +1,66 @@
 {
   "name": "@tiptap/starter-kit",
+  "version": "3.30.3",
   "description": "starter kit for tiptap",
-  "version": "2.2.0-rc.3",
-  "homepage": "https://tiptap.dev",
   "keywords": [
     "tiptap",
     "tiptap starter kit"
   ],
+  "homepage": "https://tiptap.dev",
+  "bugs": {
+    "url": "https://github.com/ueberdosis/tiptap/issues"
+  },
   "license": "MIT",
-  "funding": {
-    "type": "github",
-    "url": "https://github.com/sponsors/ueberdosis"
-  },
-  "exports": {
-    ".": {
-      "types": "./dist/packages/starter-kit/src/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
-    }
-  },
-  "main": "dist/index.cjs",
-  "module": "dist/index.js",
-  "umd": "dist/index.umd.js",
-  "types": "dist/packages/starter-kit/src/index.d.ts",
-  "type": "module",
-  "files": [
-    "src",
-    "dist"
-  ],
-  "dependencies": {
-    "@tiptap/core": "^2.2.0-rc.3",
-    "@tiptap/extension-blockquote": "^2.2.0-rc.3",
-    "@tiptap/extension-bold": "^2.2.0-rc.3",
-    "@tiptap/extension-bullet-list": "^2.2.0-rc.3",
-    "@tiptap/extension-code": "^2.2.0-rc.3",
-    "@tiptap/extension-code-block": "^2.2.0-rc.3",
-    "@tiptap/extension-document": "^2.2.0-rc.3",
-    "@tiptap/extension-dropcursor": "^2.2.0-rc.3",
-    "@tiptap/extension-gapcursor": "^2.2.0-rc.3",
-    "@tiptap/extension-hard-break": "^2.2.0-rc.3",
-    "@tiptap/extension-heading": "^2.2.0-rc.3",
-    "@tiptap/extension-history": "^2.2.0-rc.3",
-    "@tiptap/extension-horizontal-rule": "^2.2.0-rc.3",
-    "@tiptap/extension-italic": "^2.2.0-rc.3",
-    "@tiptap/extension-list-item": "^2.2.0-rc.3",
-    "@tiptap/extension-ordered-list": "^2.2.0-rc.3",
-    "@tiptap/extension-paragraph": "^2.2.0-rc.3",
-    "@tiptap/extension-strike": "^2.2.0-rc.3",
-    "@tiptap/extension-text": "^2.2.0-rc.3"
-  },
   "repository": {
     "type": "git",
     "url": "https://github.com/ueberdosis/tiptap",
     "directory": "packages/starter-kit"
   },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/ueberdosis"
+  },
+  "files": [
+    "src",
+    "dist"
+  ],
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": {
+        "import": "./dist/index.d.ts",
+        "require": "./dist/index.d.cts"
+      },
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
   "scripts": {
-    "clean": "rm -rf dist",
-    "build": "npm run clean && rollup -c"
+    "build": "vp pack"
+  },
+  "dependencies": {
+    "@tiptap/core": "workspace:*",
+    "@tiptap/extension-blockquote": "workspace:*",
+    "@tiptap/extension-bold": "workspace:*",
+    "@tiptap/extension-bullet-list": "workspace:*",
+    "@tiptap/extension-code": "workspace:*",
+    "@tiptap/extension-code-block": "workspace:*",
+    "@tiptap/extension-document": "workspace:*",
+    "@tiptap/extension-hard-break": "workspace:*",
+    "@tiptap/extension-heading": "workspace:*",
+    "@tiptap/extension-horizontal-rule": "workspace:*",
+    "@tiptap/extension-italic": "workspace:*",
+    "@tiptap/extension-link": "workspace:*",
+    "@tiptap/extension-list": "workspace:*",
+    "@tiptap/extension-ordered-list": "workspace:*",
+    "@tiptap/extension-paragraph": "workspace:*",
+    "@tiptap/extension-strike": "workspace:*",
+    "@tiptap/extension-text": "workspace:*",
+    "@tiptap/extension-underline": "workspace:*",
+    "@tiptap/extensions": "workspace:*",
+    "@tiptap/pm": "workspace:*"
   }
 }

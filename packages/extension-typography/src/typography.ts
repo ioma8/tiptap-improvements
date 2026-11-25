@@ -1,142 +1,346 @@
 import { Extension, textInputRule } from '@tiptap/core'
 
-export interface TypographyOptions {
-  emDash: false | string,
-  ellipsis: false | string,
-  openDoubleQuote: false | string,
-  closeDoubleQuote: false | string,
-  openSingleQuote: false | string,
-  closeSingleQuote: false | string,
-  leftArrow: false | string,
-  rightArrow: false | string,
-  copyright: false | string,
-  trademark: false | string,
-  servicemark: false | string,
-  registeredTrademark: false | string,
-  oneHalf: false | string,
-  plusMinus: false | string,
-  notEqual: false | string,
-  laquo: false | string,
-  raquo: false | string,
-  multiplication: false | string,
-  superscriptTwo: false | string,
-  superscriptThree: false | string,
-  oneQuarter: false | string,
-  threeQuarters: false | string,
+/**
+ * Configuration for directional quotes (open/close pair).
+ */
+export interface DirectionalQuotes {
+  open: string
+  close: string
 }
 
-export const emDash = (override?: string) => textInputRule({
-  find: /--$/,
-  replace: override ?? '—',
-})
+export interface TypographyOptions {
+  /**
+   * The em dash character.
+   * @default '—'
+   */
+  emDash: false | string
 
-export const ellipsis = (override?: string) => textInputRule({
-  find: /\.\.\.$/,
-  replace: override ?? '…',
-})
+  /**
+   * The ellipsis character.
+   * @default '…'
+   */
+  ellipsis: false | string
 
-export const openDoubleQuote = (override?: string) => textInputRule({
-  find: /(?:^|[\s{[(<'"\u2018\u201C])(")$/,
-  replace: override ?? '“',
-})
+  /**
+   * The open double quote character.
+   * @default '“'
+   */
+  openDoubleQuote: false | string
 
-export const closeDoubleQuote = (override?: string) => textInputRule({
-  find: /"$/,
-  replace: override ?? '”',
-})
+  /**
+   * The close double quote character.
+   * @default '”'
+   */
+  closeDoubleQuote: false | string
 
-export const openSingleQuote = (override?: string) => textInputRule({
-  find: /(?:^|[\s{[(<'"\u2018\u201C])(')$/,
-  replace: override ?? '‘',
-})
+  /**
+   * The open single quote character.
+   * @default '‘'
+   */
+  openSingleQuote: false | string
 
-export const closeSingleQuote = (override?: string) => textInputRule({
-  find: /'$/,
-  replace: override ?? '’',
-})
+  /**
+   * The close single quote character.
+   * @default '’'
+   */
+  closeSingleQuote: false | string
 
-export const leftArrow = (override?: string) => textInputRule({
-  find: /<-$/,
-  replace: override ?? '←',
-})
+  /**
+   * The left arrow character.
+   * @default '←'
+   */
+  leftArrow: false | string
 
-export const rightArrow = (override?: string) => textInputRule({
-  find: /->$/,
-  replace: override ?? '→',
-})
+  /**
+   * The right arrow character.
+   * @default '→'
+   */
+  rightArrow: false | string
 
-export const copyright = (override?: string) => textInputRule({
-  find: /\(c\)$/,
-  replace: override ?? '©',
-})
+  /**
+   * The copyright character.
+   * @default '©'
+   */
+  copyright: false | string
 
-export const trademark = (override?: string) => textInputRule({
-  find: /\(tm\)$/,
-  replace: override ?? '™',
-})
+  /**
+   * The trademark character.
+   * @default '™'
+   */
+  trademark: false | string
 
-export const servicemark = (override?: string) => textInputRule({
-  find: /\(sm\)$/,
-  replace: override ?? '℠',
-})
+  /**
+   * The servicemark character.
+   * @default '℠'
+   */
+  servicemark: false | string
 
-export const registeredTrademark = (override?: string) => textInputRule({
-  find: /\(r\)$/,
-  replace: override ?? '®',
-})
+  /**
+   * The registered trademark character.
+   * @default '®'
+   */
+  registeredTrademark: false | string
 
-export const oneHalf = (override?: string) => textInputRule({
-  find: /(?:^|\s)(1\/2)$/,
-  replace: override ?? '½',
-})
+  /**
+   * The one half character.
+   * @default '½'
+   */
+  oneHalf: false | string
 
-export const plusMinus = (override?: string) => textInputRule({
-  find: /\+\/-$/,
-  replace: override ?? '±',
-})
+  /**
+   * The plus minus character.
+   * @default '±'
+   */
+  plusMinus: false | string
 
-export const notEqual = (override?: string) => textInputRule({
-  find: /!=$/,
-  replace: override ?? '≠',
-})
+  /**
+   * The not equal character.
+   * @default '≠'
+   */
+  notEqual: false | string
 
-export const laquo = (override?: string) => textInputRule({
-  find: /<<$/,
-  replace: override ?? '«',
-})
+  /**
+   * The laquo character.
+   * @default '«'
+   */
+  laquo: false | string
 
-export const raquo = (override?: string) => textInputRule({
-  find: />>$/,
-  replace: override ?? '»',
-})
+  /**
+   * The raquo character.
+   * @default '»'
+   */
+  raquo: false | string
 
-export const multiplication = (override?: string) => textInputRule({
-  find: /\d+\s?([*x])\s?\d+$/,
-  replace: override ?? '×',
-})
+  /**
+   * The multiplication character.
+   * @default '×'
+   */
+  multiplication: false | string
 
-export const superscriptTwo = (override?: string) => textInputRule({
-  find: /\^2$/,
-  replace: override ?? '²',
-})
+  /**
+   * The superscript two character.
+   * @default '²'
+   */
+  superscriptTwo: false | string
 
-export const superscriptThree = (override?: string) => textInputRule({
-  find: /\^3$/,
-  replace: override ?? '³',
-})
+  /**
+   * The superscript three character.
+   * @default '³'
+   */
+  superscriptThree: false | string
 
-export const oneQuarter = (override?: string) => textInputRule({
-  find: /(?:^|\s)(1\/4)$/,
-  replace: override ?? '¼',
-})
+  /**
+   * The one quarter character.
+   * @default '¼'
+   */
+  oneQuarter: false | string
 
-export const threeQuarters = (override?: string) => textInputRule({
-  find: /(?:^|\s)(3\/4)$/,
-  replace: override ?? '¾',
-})
+  /**
+   * The three quarters character.
+   * @default '¾'
+   */
+  threeQuarters: false | string
 
+  /**
+   * Directional double quotes configuration.
+   * Use this for explicit LTR/RTL quote control.
+   * When `rtl` is configured, RTL-specific quote rules are used instead of default LTR.
+   * @example
+   * ```ts
+   * Typography.configure({
+   *   doubleQuotes: {
+   *     rtl: { open: '\u201D', close: '\u201C' } // Swapped for RTL
+   *   }
+   * })
+   * ```
+   */
+  doubleQuotes?: {
+    rtl?: DirectionalQuotes
+  }
+
+  /**
+   * Directional single quotes configuration.
+   * Use this for explicit LTR/RTL quote control.
+   * When `rtl` is configured, RTL-specific quote rules are used instead of default LTR.
+   * @example
+   * ```ts
+   * Typography.configure({
+   *   singleQuotes: {
+   *     rtl: { open: '\u2019', close: '\u2018' } // Swapped for RTL
+   *   }
+   * })
+   * ```
+   */
+  singleQuotes?: {
+    rtl?: DirectionalQuotes
+  }
+}
+
+export const emDash = (override?: string) =>
+  textInputRule({
+    find: /--$/,
+    replace: override ?? '—',
+  })
+
+export const ellipsis = (override?: string) =>
+  textInputRule({
+    find: /\.\.\.$/,
+    replace: override ?? '…',
+  })
+
+export const openDoubleQuote = (override?: string) =>
+  textInputRule({
+    find: /(?:^|[\s{[(<'"\u2018\u201C])(")$/,
+    replace: override ?? '“',
+  })
+
+export const closeDoubleQuote = (override?: string) =>
+  textInputRule({
+    find: /"$/,
+    replace: override ?? '”',
+  })
+
+export const openSingleQuote = (override?: string) =>
+  textInputRule({
+    find: /(?:^|[\s{[(<'"\u2018\u201C])(')$/,
+    replace: override ?? '‘',
+  })
+
+export const closeSingleQuote = (override?: string) =>
+  textInputRule({
+    find: /'$/,
+    replace: override ?? '’',
+  })
+
+export const leftArrow = (override?: string) =>
+  textInputRule({
+    find: /<-$/,
+    replace: override ?? '←',
+  })
+
+export const rightArrow = (override?: string) =>
+  textInputRule({
+    find: /->$/,
+    replace: override ?? '→',
+  })
+
+export const copyright = (override?: string) =>
+  textInputRule({
+    find: /\(c\)$/,
+    replace: override ?? '©',
+  })
+
+export const trademark = (override?: string) =>
+  textInputRule({
+    find: /\(tm\)$/,
+    replace: override ?? '™',
+  })
+
+export const servicemark = (override?: string) =>
+  textInputRule({
+    find: /\(sm\)$/,
+    replace: override ?? '℠',
+  })
+
+export const registeredTrademark = (override?: string) =>
+  textInputRule({
+    find: /\(r\)$/,
+    replace: override ?? '®',
+  })
+
+export const oneHalf = (override?: string) =>
+  textInputRule({
+    find: /(?:^|\s)(1\/2)\s$/,
+    replace: override ?? '½',
+  })
+
+export const plusMinus = (override?: string) =>
+  textInputRule({
+    find: /\+\/-$/,
+    replace: override ?? '±',
+  })
+
+export const notEqual = (override?: string) =>
+  textInputRule({
+    find: /!=$/,
+    replace: override ?? '≠',
+  })
+
+export const laquo = (override?: string) =>
+  textInputRule({
+    find: /<<$/,
+    replace: override ?? '«',
+  })
+
+export const raquo = (override?: string) =>
+  textInputRule({
+    find: />>$/,
+    replace: override ?? '»',
+  })
+
+export const multiplication = (override?: string) =>
+  textInputRule({
+    find: /\d+\s?([*x])\s?\d+$/,
+    replace: override ?? '×',
+  })
+
+export const superscriptTwo = (override?: string) =>
+  textInputRule({
+    find: /\^2$/,
+    replace: override ?? '²',
+  })
+
+export const superscriptThree = (override?: string) =>
+  textInputRule({
+    find: /\^3$/,
+    replace: override ?? '³',
+  })
+
+export const oneQuarter = (override?: string) =>
+  textInputRule({
+    find: /(?:^|\s)(1\/4)\s$/,
+    replace: override ?? '¼',
+  })
+
+export const threeQuarters = (override?: string) =>
+  textInputRule({
+    find: /(?:^|\s)(3\/4)\s$/,
+    replace: override ?? '¾',
+  })
+
+/**
+ * This extension allows you to add typography replacements for specific characters.
+ * @see https://www.tiptap.dev/api/extensions/typography
+ */
 export const Typography = Extension.create<TypographyOptions>({
   name: 'typography',
+
+  addOptions() {
+    return {
+      closeDoubleQuote: '”',
+      closeSingleQuote: '’',
+      copyright: '©',
+      ellipsis: '…',
+      emDash: '—',
+      laquo: '«',
+      leftArrow: '←',
+      multiplication: '×',
+      notEqual: '≠',
+      oneHalf: '½',
+      oneQuarter: '¼',
+      openDoubleQuote: '“',
+      openSingleQuote: '‘',
+      plusMinus: '±',
+      raquo: '»',
+      registeredTrademark: '®',
+      rightArrow: '→',
+      servicemark: '℠',
+      superscriptThree: '³',
+      superscriptTwo: '²',
+      threeQuarters: '¾',
+      trademark: '™',
+    }
+  },
 
   addInputRules() {
     const rules = []
@@ -149,20 +353,47 @@ export const Typography = Extension.create<TypographyOptions>({
       rules.push(ellipsis(this.options.ellipsis))
     }
 
-    if (this.options.openDoubleQuote !== false) {
-      rules.push(openDoubleQuote(this.options.openDoubleQuote))
+    // Determine if RTL mode is active based on explicit config or editor option
+    const isRTL = this.editor.options.textDirection === 'rtl'
+
+    // Double quotes: use explicit RTL config if provided, otherwise use automatic RTL detection
+    if (this.options.doubleQuotes?.rtl) {
+      const { open, close } = this.options.doubleQuotes.rtl
+
+      rules.push(openDoubleQuote(open))
+      rules.push(closeDoubleQuote(close))
+    } else if (isRTL) {
+      // Automatic RTL detection: swap open and close quotes
+      rules.push(openDoubleQuote('\u201D')) // Right double quotation mark
+      rules.push(closeDoubleQuote('\u201C')) // Left double quotation mark
+    } else {
+      if (this.options.openDoubleQuote !== false) {
+        rules.push(openDoubleQuote(this.options.openDoubleQuote))
+      }
+
+      if (this.options.closeDoubleQuote !== false) {
+        rules.push(closeDoubleQuote(this.options.closeDoubleQuote))
+      }
     }
 
-    if (this.options.closeDoubleQuote !== false) {
-      rules.push(closeDoubleQuote(this.options.closeDoubleQuote))
-    }
+    // Single quotes: use explicit RTL config if provided, otherwise use automatic RTL detection
+    if (this.options.singleQuotes?.rtl) {
+      const { open, close } = this.options.singleQuotes.rtl
 
-    if (this.options.openSingleQuote !== false) {
-      rules.push(openSingleQuote(this.options.openSingleQuote))
-    }
+      rules.push(openSingleQuote(open))
+      rules.push(closeSingleQuote(close))
+    } else if (isRTL) {
+      // Automatic RTL detection: swap open and close quotes
+      rules.push(openSingleQuote('\u2019')) // Right single quotation mark
+      rules.push(closeSingleQuote('\u2018')) // Left single quotation mark
+    } else {
+      if (this.options.openSingleQuote !== false) {
+        rules.push(openSingleQuote(this.options.openSingleQuote))
+      }
 
-    if (this.options.closeSingleQuote !== false) {
-      rules.push(closeSingleQuote(this.options.closeSingleQuote))
+      if (this.options.closeSingleQuote !== false) {
+        rules.push(closeSingleQuote(this.options.closeSingleQuote))
+      }
     }
 
     if (this.options.leftArrow !== false) {

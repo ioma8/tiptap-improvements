@@ -1,6 +1,7 @@
 import 'iframe-resizer/js/iframeResizer.contentWindow'
 import './style.scss'
 
+import { mount } from 'svelte'
 import { debug, splitName } from './helper.js'
 
 export default function init(name: string, source: any) {
@@ -10,12 +11,11 @@ export default function init(name: string, source: any) {
 
   const [demoCategory, demoName, frameworkName] = splitName(name)
 
-  import(`../src/${demoCategory}/${demoName}/${frameworkName}/index.svelte`)
-    .then(Module => {
-      const Component = Module.default
+  import(`../src/${demoCategory}/${demoName}/${frameworkName}/index.svelte`).then(Module => {
+    const Component = Module.default
 
-      new Component({ target: document.querySelector('#app') }) // eslint-disable-line
+    mount(Component, { target: document.querySelector('#app')! })
 
-      debug()
-    })
+    debug()
+  })
 }

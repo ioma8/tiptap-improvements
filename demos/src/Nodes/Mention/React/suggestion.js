@@ -1,44 +1,60 @@
 import { ReactRenderer } from '@tiptap/react'
-import tippy from 'tippy.js'
 
+import { updatePosition } from '../../../utils/updatePosition.js'
 import MentionList from './MentionList.jsx'
 
+const allItems = [
+  'Lea Thompson',
+  'Cyndi Lauper',
+  'Tom Cruise',
+  'Madonna',
+  'Jerry Hall',
+  'Joan Collins',
+  'Winona Ryder',
+  'Christina Applegate',
+  'Alyssa Milano',
+  'Molly Ringwald',
+  'Ally Sheedy',
+  'Debbie Harry',
+  'Olivia Newton-John',
+  'Elton John',
+  'Michael J. Fox',
+  'Axl Rose',
+  'Emilio Estevez',
+  'Ralph Macchio',
+  'Rob Lowe',
+  'Jennifer Grey',
+  'Mickey Rourke',
+  'John Cusack',
+  'Matthew Broderick',
+  'Justine Bateman',
+  'Lisa Bonet',
+]
+
 export default {
-  items: ({ query }) => {
-    return [
-      'Lea Thompson',
-      'Cyndi Lauper',
-      'Tom Cruise',
-      'Madonna',
-      'Jerry Hall',
-      'Joan Collins',
-      'Winona Ryder',
-      'Christina Applegate',
-      'Alyssa Milano',
-      'Molly Ringwald',
-      'Ally Sheedy',
-      'Debbie Harry',
-      'Olivia Newton-John',
-      'Elton John',
-      'Michael J. Fox',
-      'Axl Rose',
-      'Emilio Estevez',
-      'Ralph Macchio',
-      'Rob Lowe',
-      'Jennifer Grey',
-      'Mickey Rourke',
-      'John Cusack',
-      'Matthew Broderick',
-      'Justine Bateman',
-      'Lisa Bonet',
-    ]
-      .filter(item => item.toLowerCase().startsWith(query.toLowerCase()))
-      .slice(0, 5)
+  items: async ({ query, signal }) => {
+    // Simulate an async API call
+    await new Promise(resolve => {
+      setTimeout(resolve, 300)
+    })
+
+    // Bail out if the request was aborted (e.g. user kept typing or closed the popup)
+    if (signal.aborted) {
+      return []
+    }
+
+    // find items that include this character query
+    return allItems.filter(item => item.toLowerCase().includes(query.toLowerCase())).slice(0, 5)
   },
+
+  minQueryLength: 2,
+
+  debounce: 300,
+
+  initialItems: ['Lea Thompson', 'Cyndi Lauper', 'Tom Cruise'],
 
   render: () => {
     let component
-    let popup
 
     return {
       onStart: props => {
@@ -51,15 +67,11 @@ export default {
           return
         }
 
-        popup = tippy('body', {
-          getReferenceClientRect: props.clientRect,
-          appendTo: () => document.body,
-          content: component.element,
-          showOnCreate: true,
-          interactive: true,
-          trigger: 'manual',
-          placement: 'bottom-start',
-        })
+        component.element.style.position = 'absolute'
+
+        document.body.appendChild(component.element)
+
+        updatePosition({ editor: props.editor, element: component.element })
       },
 
       onUpdate(props) {
@@ -69,14 +81,12 @@ export default {
           return
         }
 
-        popup[0].setProps({
-          getReferenceClientRect: props.clientRect,
-        })
+        updatePosition({ editor: props.editor, element: component.element })
       },
 
       onKeyDown(props) {
         if (props.event.key === 'Escape') {
-          popup[0].hide()
+          component.destroy()
 
           return true
         }
@@ -85,7 +95,7 @@ export default {
       },
 
       onExit() {
-        popup[0].destroy()
+        component.element.remove()
         component.destroy()
       },
     }

@@ -1,7 +1,8 @@
-import { NodeType } from '@tiptap/pm/model'
+import type { NodeType } from '@tiptap/pm/model'
 
-import { InputRule, InputRuleFinder } from '../InputRule.js'
-import { ExtendedRegExpMatchArray } from '../types.js'
+import type { InputRuleFinder } from '../InputRule.js'
+import { InputRule } from '../InputRule.js'
+import type { ExtendedRegExpMatchArray } from '../types.js'
 import { callOrReturn } from '../utilities/callOrReturn.js'
 
 /**
@@ -9,10 +10,12 @@ import { callOrReturn } from '../utilities/callOrReturn.js'
  * matched text is typed into it. When using a regular expresion you’ll
  * probably want the regexp to start with `^`, so that the pattern can
  * only occur at the start of a textblock.
+ * @see https://tiptap.dev/docs/editor/extensions/custom-extensions/extend-existing#input-rules
  */
 export function textblockTypeInputRule(config: {
   find: InputRuleFinder
   type: NodeType
+  undoable?: boolean
   getAttributes?:
     | Record<string, any>
     | ((match: ExtendedRegExpMatchArray) => Record<string, any>)
@@ -33,5 +36,6 @@ export function textblockTypeInputRule(config: {
         .delete(range.from, range.to)
         .setBlockType(range.from, range.from, config.type, attributes)
     },
+    undoable: config.undoable,
   })
 }

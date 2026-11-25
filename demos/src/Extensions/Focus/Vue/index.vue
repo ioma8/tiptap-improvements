@@ -3,14 +3,13 @@
 </template>
 
 <script>
-import BulletList from '@tiptap/extension-bullet-list'
 import Code from '@tiptap/extension-code'
 import Document from '@tiptap/extension-document'
-import Focus from '@tiptap/extension-focus'
-import ListItem from '@tiptap/extension-list-item'
+import { BulletList, ListItem } from '@tiptap/extension-list'
 import Paragraph from '@tiptap/extension-paragraph'
 import Text from '@tiptap/extension-text'
-import { Editor, EditorContent } from '@tiptap/vue-3'
+import { Focus } from '@tiptap/extensions'
+import { Editor, EditorContent } from '@tiptap/vue'
 
 export default {
   components: {
@@ -57,34 +56,37 @@ export default {
 </script>
 
 <style lang="scss">
-.has-focus {
-  border-radius: 3px;
-  box-shadow: 0 0 0 3px #68cef8;
-}
-
 /* Basic editor styles */
 .tiptap {
-  > * + * {
-    margin-top: 0.75em;
+  :first-child {
+    margin-top: 0;
   }
 
+  /* List styles */
   ul,
   ol {
     padding: 0 1rem;
+    margin: 1.25rem 1rem 1.25rem 0.4rem;
+
+    li p {
+      margin-top: 0.25em;
+      margin-bottom: 0.25em;
+    }
   }
 
-  blockquote {
-    padding-left: 1rem;
-    border-left: 2px solid rgba(#0D0D0D, 0.1);
-  }
-
+  /* Code and preformatted text styles */
   code {
-    font-size: 0.9rem;
-    padding: 0.25em;
-    border-radius: 0.25em;
-    background-color: rgba(#616161, 0.1);
-    color: #616161;
-    box-decoration-break: clone;
+    background-color: var(--purple-light);
+    border-radius: 0.4rem;
+    color: var(--black);
+    font-size: 0.85rem;
+    padding: 0.25em 0.3em;
+  }
+
+  // Focus styles
+  .has-focus {
+    border-radius: 3px;
+    box-shadow: 0 0 0 2px var(--purple);
   }
 }
 </style>

@@ -1,8 +1,19 @@
 import { mergeAttributes, Node } from '@tiptap/core'
 
 export interface HardBreakOptions {
-  keepMarks: boolean,
-  HTMLAttributes: Record<string, any>,
+  /**
+   * Controls if marks should be kept after being split by a hard break.
+   * @default true
+   * @example false
+   */
+  keepMarks: boolean
+
+  /**
+   * HTML attributes to add to the hard break element.
+   * @default {}
+   * @example { class: 'foo' }
+   */
+  HTMLAttributes: Record<string, any>
 }
 
 declare module '@tiptap/core' {
@@ -10,14 +21,21 @@ declare module '@tiptap/core' {
     hardBreak: {
       /**
        * Add a hard break
+       * @example editor.commands.setHardBreak()
        */
-      setHardBreak: () => ReturnType,
+      setHardBreak: () => ReturnType
     }
   }
 }
 
+/**
+ * This extension allows you to insert hard breaks.
+ * @see https://www.tiptap.dev/api/nodes/hard-break
+ */
 export const HardBreak = Node.create<HardBreakOptions>({
   name: 'hardBreak',
+
+  markdownTokenName: 'br',
 
   addOptions() {
     return {
@@ -32,10 +50,10 @@ export const HardBreak = Node.create<HardBreakOptions>({
 
   selectable: false,
 
+  linebreakReplacement: true,
+
   parseHTML() {
-    return [
-      { tag: 'br' },
-    ]
+    return [{ tag: 'br' }]
   },
 
   renderHTML({ HTMLAttributes }) {
@@ -46,44 +64,51 @@ export const HardBreak = Node.create<HardBreakOptions>({
     return '\n'
   },
 
+  renderMarkdown: () => `  \n`,
+
+  parseMarkdown: () => {
+    return {
+      type: 'hardBreak',
+    }
+  },
+
   addCommands() {
     return {
-      setHardBreak: () => ({
-        commands,
-        chain,
-        state,
-        editor,
-      }) => {
-        return commands.first([
-          () => commands.exitCode(),
-          () => commands.command(() => {
-            const { selection, storedMarks } = state
+      setHardBreak:
+        () =>
+        ({ commands, chain, state, editor }) => {
+          return commands.first([
+            () => commands.exitCode(),
+            () =>
+              commands.command(() => {
+                const { selection, storedMarks } = state
 
-            if (selection.$from.parent.type.spec.isolating) {
-              return false
-            }
-
-            const { keepMarks } = this.options
-            const { splittableMarks } = editor.extensionManager
-            const marks = storedMarks
-              || (selection.$to.parentOffset && selection.$from.marks())
-
-            return chain()
-              .insertContent({ type: this.name })
-              .command(({ tr, dispatch }) => {
-                if (dispatch && marks && keepMarks) {
-                  const filteredMarks = marks
-                    .filter(mark => splittableMarks.includes(mark.type.name))
-
-                  tr.ensureMarks(filteredMarks)
+                if (selection.$from.parent.type.spec.isolating) {
+                  return false
                 }
 
-                return true
-              })
-              .run()
-          }),
-        ])
-      },
+                const { keepMarks } = this.options
+                const { splittableMarks } = editor.extensionManager
+                const marks = storedMarks || (selection.$to.parentOffset && selection.$from.marks())
+
+                return chain()
+                  .insertContent({ type: this.name })
+                  .command(({ tr, dispatch }) => {
+                    if (dispatch && marks && keepMarks) {
+                      const filteredMarks = marks.filter(mark =>
+                        splittableMarks.includes(mark.type.name),
+                      )
+
+                      tr.ensureMarks(filteredMarks)
+                    }
+
+                    return true
+                  })
+                  .scrollIntoView()
+                  .run()
+              }),
+          ])
+        },
     }
   },
 

@@ -1,94 +1,81 @@
-name: Bug report
-title: "[Bug]: "
-description: You've found a bug within the editor core or one of the extensions? Feel free to create a bug report to help us fixing it.
-assignees:
-  - bdbch
-  - svenadlung
-labels:
-  - "Type: Bug"
-  - "Category: Open Source"
-  - "Status: New"
+name: Bug Report
+description: Found a bug in the editor core or one of the extensions? Report it here to help us improve.
+
+labels: ['status: triage']
+type: 'Bug'
+
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Please use simple, human-written English. Keep your answers short and clear.
+        Small code examples that show the problem are welcome. Do not include a code fix or a complete implementation in an issue. If you already have a fix, please open a pull request instead.
   - type: input
     id: packages
     attributes:
-      label: Which packages did you experience the bug in?
-      description: Please list all packages that you are using.
+      label: Affected Packages
+      description: List the Tiptap packages involved in the problem.
       placeholder: core, extension-mention, react
     validations:
       required: true
   - type: input
     id: version
     attributes:
-      label: What Tiptap version are you using?
-      description: Please list the version of all packages that you are using.
-      placeholder: 2.0.0
-    validations:
-      required: true
-  - type: textarea
-    id: problem
-    attributes:
-      label: What’s the bug you are facing?
-      description: A clear and concise description of what the bug is.
-      placeholder: "I’m always frustrated when …"
+      label: Tiptap Version
+      description: Which Tiptap version or package versions are affected?
+      placeholder: 3.0.0
     validations:
       required: true
   - type: dropdown
     id: browser
     attributes:
-      label: What browser are you using?
-      description: Please list the browser that you are using.
+      label: Browser Used
+      description: Select the browser where you saw the problem.
       options:
         - Chrome
         - Firefox
         - Safari
         - Edge
         - Other
+        - Not browser-specific
     validations:
       required: true
-  - type: markdown
+  - type: textarea
+    id: body
     attributes:
-      value: |
-        ### CodeSandbox templates
-
-        * Javascript: https://codesandbox.io/s/tiptap-js-fv1lyo
-        * React: https://codesandbox.io/s/tiptap-react-qidlsv
-        * Vue 2: https://codesandbox.io/s/tiptap-vue-2-25nq3g
-        * Vue 3: https://codesandbox.io/p/sandbox/tiptap-vue-3-ci7q9h
-  - type: input
-    id: sandbox
-    attributes:
-      label: Code example
-      description: "Can you provide a CodeSandbox, Stackblitz, GitHub repository or any other kind of code example? This way, we can reproduce your issue faster."
-      placeholder: https://codesandbox.io/s/tiptap-react-issue-template-nwvwck?file=/src/App.js
+      label: What happened?
+      description: Describe what happens, when it happens, and why it is a problem. Use short sentences and simple English. Do not write a wall of text, use complicated language, or include a complete code fix.
+      placeholder: The issue happens when...
     validations:
-      required: false
+      required: true
   - type: textarea
     id: expectation
     attributes:
-      label: What did you expect to happen?
-      description: A clear and concise description of what you expected to happen.
+      label: Expected Behavior
+      description: Describe what you expected to happen.
+      placeholder: I expected...
     validations:
       required: true
-  - type: textarea
-    id: context
-    attributes:
-      label: Anything to add? (optional)
-      description: "Add any other context, screenshots, videos or GIFs here."
-  - type: checkboxes
-    attributes:
-      label: Did you update your dependencies?
-      description: "Use `npm update` to update your dependencies."
-      options:
-        - label: Yes, I’ve updated my dependencies to use the latest version of all packages.
-          required: true
-  - type: checkboxes
-    attributes:
-      label: Are you sponsoring us?
-      options:
-        - label: Yes, I’m a sponsor. 💖
-          required: false
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to send us feedback!
+        A small reproducible example is the best way to help us investigate the issue. Please add one if you can.
+
+        CodeSandbox templates:
+        * JavaScript: [JS Template](https://codesandbox.io/s/tiptap-js-fv1lyo)
+        * React: [React Template](https://codesandbox.io/s/tiptap-react-qidlsv)
+        * Vue 3: [Vue 3 Template](https://codesandbox.io/p/sandbox/tiptap-vue-3-ci7q9h)
+  - type: input
+    id: sandbox
+    attributes:
+      label: Reproducible Example URL (Optional)
+      description: Link a CodeSandbox, StackBlitz, GitHub repository, or similar example if you have one.
+      placeholder: https://codesandbox.io/s/example
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context (Optional)
+      description: Add useful screenshots, videos, or other short details. Avoid long explanations.
+  - type: markdown
+    attributes:
+      value: 'Thank you for helping us improve our open-source projects by reporting this issue!'

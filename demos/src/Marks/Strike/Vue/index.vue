@@ -1,15 +1,27 @@
 <template>
-  <div v-if="editor">
-    <button @click="editor.chain().focus().toggleStrike().run()" :class="{ 'is-active': editor.isActive('strike') }">
-      toggleStrike
-    </button>
-    <button @click="editor.chain().focus().setStrike().run()" :disabled="editor.isActive('strike')">
-      setStrike
-    </button>
-    <button @click="editor.chain().focus().unsetStrike().run()" :disabled="!editor.isActive('strike')">
-      unsetStrike
-    </button>
-
+  <div v-if="editor" class="container">
+    <div class="control-group">
+      <div class="button-group">
+        <button
+          @click="editor.chain().focus().toggleStrike().run()"
+          :class="{ 'is-active': editor.isActive('strike') }"
+        >
+          Toggle strike
+        </button>
+        <button
+          @click="editor.chain().focus().setStrike().run()"
+          :disabled="editor.isActive('strike')"
+        >
+          Set strike
+        </button>
+        <button
+          @click="editor.chain().focus().unsetStrike().run()"
+          :disabled="!editor.isActive('strike')"
+        >
+          Unset strike
+        </button>
+      </div>
+    </div>
     <editor-content :editor="editor" />
   </div>
 </template>
@@ -19,7 +31,7 @@ import Document from '@tiptap/extension-document'
 import Paragraph from '@tiptap/extension-paragraph'
 import Strike from '@tiptap/extension-strike'
 import Text from '@tiptap/extension-text'
-import { Editor, EditorContent } from '@tiptap/vue-3'
+import { Editor, EditorContent } from '@tiptap/vue'
 
 export default {
   components: {
@@ -34,12 +46,7 @@ export default {
 
   mounted() {
     this.editor = new Editor({
-      extensions: [
-        Document,
-        Paragraph,
-        Text,
-        Strike,
-      ],
+      extensions: [Document, Paragraph, Text, Strike],
       content: `
           <p>This isn’t striked through.</s></p>
           <p><s>But that’s striked through.</s></p>

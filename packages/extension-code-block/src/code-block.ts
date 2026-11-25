@@ -1,24 +1,49 @@
 import { mergeAttributes, Node, textblockTypeInputRule } from '@tiptap/core'
-import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
+import { Plugin, PluginKey, Selection, TextSelection } from '@tiptap/pm/state'
+
+const DEFAULT_TAB_SIZE = 4
 
 export interface CodeBlockOptions {
   /**
    * Adds a prefix to language classes that are applied to code tags.
-   * Defaults to `'language-'`.
+   * @default 'language-'
    */
-  languageClassPrefix: string
+  languageClassPrefix: string | null | undefined
   /**
    * Define whether the node should be exited on triple enter.
-   * Defaults to `true`.
+   * @default true
    */
-  exitOnTripleEnter: boolean
+  exitOnTripleEnter: boolean | null | undefined
   /**
    * Define whether the node should be exited on arrow down if there is no node after it.
-   * Defaults to `true`.
+   * @default true
    */
-  exitOnArrowDown: boolean
+  exitOnArrowDown: boolean | null | undefined
+  /**
+   * Define whether the node should be exited on arrow up if there is no node before it.
+   * @default true
+   */
+  exitOnArrowUp: boolean | null | undefined
+  /**
+   * The default language.
+   * @default null
+   * @example 'js'
+   */
+  defaultLanguage: string | null | undefined
+  /**
+   * Enable tab key for indentation in code blocks.
+   * @default false
+   */
+  enableTabIndentation: boolean | null | undefined
+  /**
+   * The number of spaces to use for tab indentation.
+   * @default 4
+   */
+  tabSize: number | null | undefined
   /**
    * Custom HTML attributes that should be added to the rendered HTML tag.
+   * @default {}
+   * @example { class: 'foo' }
    */
   HTMLAttributes: Record<string, any>
 }
@@ -28,19 +53,34 @@ declare module '@tiptap/core' {
     codeBlock: {
       /**
        * Set a code block
+       * @param attributes Code block attributes
+       * @example editor.commands.setCodeBlock({ language: 'javascript' })
        */
       setCodeBlock: (attributes?: { language: string }) => ReturnType
       /**
        * Toggle a code block
+       * @param attributes Code block attributes
+       * @example editor.commands.toggleCodeBlock({ language: 'javascript' })
        */
       toggleCodeBlock: (attributes?: { language: string }) => ReturnType
     }
   }
 }
 
+/**
+ * Matches a code block with backticks.
+ */
 export const backtickInputRegex = /^```([a-z]+)?[\s\n]$/
+
+/**
+ * Matches a code block with tildes.
+ */
 export const tildeInputRegex = /^~~~([a-z]+)?[\s\n]$/
 
+/**
+ * This extension allows you to create code blocks.
+ * @see https://tiptap.dev/api/nodes/code-block
+ */
 export const CodeBlock = Node.create<CodeBlockOptions>({
   name: 'codeBlock',
 
@@ -49,6 +89,10 @@ export const CodeBlock = Node.create<CodeBlockOptions>({
       languageClassPrefix: 'language-',
       exitOnTripleEnter: true,
       exitOnArrowDown: true,
+      exitOnArrowUp: true,
+      defaultLanguage: null,
+      enableTabIndentation: false,
+      tabSize: DEFAULT_TAB_SIZE,
       HTMLAttributes: {},
     }
   },
@@ -66,9 +110,14 @@ export const CodeBlock = Node.create<CodeBlockOptions>({
   addAttributes() {
     return {
       language: {
-        default: null,
+        default: this.options.defaultLanguage,
         parseHTML: element => {
           const { languageClassPrefix } = this.options
+
+          if (!languageClassPrefix) {
+            return null
+          }
+
           const classNames = [...(element.firstElementChild?.classList || [])]
           const languages = classNames
             .filter(className => className.startsWith(languageClassPrefix))
@@ -111,14 +160,48 @@ export const CodeBlock = Node.create<CodeBlockOptions>({
     ]
   },
 
+  markdownTokenName: 'code',
+
+  parseMarkdown: (token, helpers) => {
+    if (
+      token.raw?.startsWith('```') === false &&
+      token.raw?.startsWith('~~~') === false &&
+      token.codeBlockStyle !== 'indented'
+    ) {
+      return []
+    }
+
+    return helpers.createNode(
+      'codeBlock',
+      { language: token.lang || null },
+      token.text ? [helpers.createTextNode(token.text)] : [],
+    )
+  },
+
+  renderMarkdown: (node, h) => {
+    let output = ''
+    const language = node.attrs?.language || ''
+
+    if (!node.content) {
+      output = `\`\`\`${language}\n\n\`\`\``
+    } else {
+      const lines = [`\`\`\`${language}`, h.renderChildren(node.content), '```']
+      output = lines.join('\n')
+    }
+
+    return output
+  },
+
   addCommands() {
     return {
       setCodeBlock:
-        attributes => ({ commands }) => {
+        attributes =>
+        ({ commands }) => {
           return commands.setNode(this.name, attributes)
         },
       toggleCodeBlock:
-        attributes => ({ commands }) => {
+        attributes =>
+        ({ commands }) => {
           return commands.toggleNode(this.name, 'paragraph', attributes)
         },
     }
@@ -142,6 +225,115 @@ export const CodeBlock = Node.create<CodeBlockOptions>({
         }
 
         return false
+      },
+
+      // handle tab indentation
+      Tab: ({ editor }) => {
+        if (!this.options.enableTabIndentation) {
+          return false
+        }
+
+        const tabSize = this.options.tabSize ?? DEFAULT_TAB_SIZE
+        const { state } = editor
+        const { selection } = state
+        const { $from, empty } = selection
+
+        if ($from.parent.type !== this.type) {
+          return false
+        }
+
+        const indent = ' '.repeat(tabSize)
+
+        if (empty) {
+          return editor.commands.insertContent(indent)
+        }
+
+        return editor.commands.command(({ tr }) => {
+          const { from, to } = selection
+          const text = state.doc.textBetween(from, to, '\n', '\n')
+          const lines = text.split('\n')
+          const indentedText = lines.map(line => indent + line).join('\n')
+
+          tr.replaceWith(from, to, state.schema.text(indentedText))
+          return true
+        })
+      },
+
+      // handle shift+tab reverse indentation
+      'Shift-Tab': ({ editor }) => {
+        if (!this.options.enableTabIndentation) {
+          return false
+        }
+
+        const tabSize = this.options.tabSize ?? DEFAULT_TAB_SIZE
+        const { state } = editor
+        const { selection } = state
+        const { $from, empty } = selection
+
+        if ($from.parent.type !== this.type) {
+          return false
+        }
+
+        if (empty) {
+          return editor.commands.command(({ tr }) => {
+            const { pos } = $from
+            const codeBlockStart = $from.start()
+            const codeBlockEnd = $from.end()
+
+            const allText = state.doc.textBetween(codeBlockStart, codeBlockEnd, '\n', '\n')
+            const lines = allText.split('\n')
+
+            let currentLineIndex = 0
+            let charCount = 0
+            const relativeCursorPos = pos - codeBlockStart
+
+            for (let i = 0; i < lines.length; i += 1) {
+              if (charCount + lines[i].length >= relativeCursorPos) {
+                currentLineIndex = i
+                break
+              }
+              charCount += lines[i].length + 1
+            }
+
+            const currentLine = lines[currentLineIndex]
+            const leadingSpaces = currentLine.match(/^ */)?.[0] || ''
+            const spacesToRemove = Math.min(leadingSpaces.length, tabSize)
+
+            if (spacesToRemove === 0) {
+              return true
+            }
+
+            let lineStartPos = codeBlockStart
+            for (let i = 0; i < currentLineIndex; i += 1) {
+              lineStartPos += lines[i].length + 1
+            }
+
+            tr.delete(lineStartPos, lineStartPos + spacesToRemove)
+
+            const cursorPosInLine = pos - lineStartPos
+            if (cursorPosInLine <= spacesToRemove) {
+              tr.setSelection(TextSelection.create(tr.doc, lineStartPos))
+            }
+
+            return true
+          })
+        }
+
+        return editor.commands.command(({ tr }) => {
+          const { from, to } = selection
+          const text = state.doc.textBetween(from, to, '\n', '\n')
+          const lines = text.split('\n')
+          const reverseIndentText = lines
+            .map(line => {
+              const leadingSpaces = line.match(/^ */)?.[0] || ''
+              const spacesToRemove = Math.min(leadingSpaces.length, tabSize)
+              return line.slice(spacesToRemove)
+            })
+            .join('\n')
+
+          tr.replaceWith(from, to, state.schema.text(reverseIndentText))
+          return true
+        })
       },
 
       // exit node on triple enter
@@ -176,6 +368,33 @@ export const CodeBlock = Node.create<CodeBlockOptions>({
           .run()
       },
 
+      // exit node on arrow up if there is no node before it
+      ArrowUp: ({ editor }) => {
+        if (!this.options.exitOnArrowUp) {
+          return false
+        }
+
+        const { state } = editor
+        const { selection } = state
+        const { $from, empty } = selection
+
+        if (!empty || $from.parent.type !== this.type) {
+          return false
+        }
+
+        if ($from.parentOffset !== 0) {
+          return false
+        }
+
+        const before = $from.before()
+
+        if (before > 0) {
+          return false
+        }
+
+        return editor.commands.insertDefaultBlock({ pos: before })
+      },
+
       // exit node on arrow down
       ArrowDown: ({ editor }) => {
         if (!this.options.exitOnArrowDown) {
@@ -205,7 +424,10 @@ export const CodeBlock = Node.create<CodeBlockOptions>({
         const nodeAfter = doc.nodeAt(after)
 
         if (nodeAfter) {
-          return false
+          return editor.commands.command(({ tr }) => {
+            tr.setSelection(Selection.near(doc.resolve(after)))
+            return true
+          })
         }
 
         return editor.commands.exitCode()
@@ -258,18 +480,23 @@ export const CodeBlock = Node.create<CodeBlockOptions>({
               return false
             }
 
-            const { tr } = view.state
+            const { tr, schema } = view.state
 
-            // create an empty code block
-            tr.replaceSelectionWith(this.type.create({ language }))
-
-            // put cursor inside the newly created code block
-            tr.setSelection(TextSelection.near(tr.doc.resolve(Math.max(0, tr.selection.from - 2))))
-
-            // add text to code block
+            // prepare a text node
             // strip carriage return chars from text pasted as code
             // see: https://github.com/ProseMirror/prosemirror-view/commit/a50a6bcceb4ce52ac8fcc6162488d8875613aacd
-            tr.insertText(text.replace(/\r\n?/g, '\n'))
+            const textNode = schema.text(text.replace(/\r\n?/g, '\n'))
+
+            // create a code block with the text node
+            // replace selection with the code block
+            tr.replaceSelectionWith(this.type.create({ language }, textNode))
+
+            if (tr.selection.$from.parent.type !== this.type) {
+              // put cursor inside the newly created code block
+              tr.setSelection(
+                TextSelection.near(tr.doc.resolve(Math.max(0, tr.selection.from - 2))),
+              )
+            }
 
             // store meta information
             // this is useful for other plugins that depends on the paste event

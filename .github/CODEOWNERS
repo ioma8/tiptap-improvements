@@ -1,11 +1,5 @@
-# Global
-* @bdbch @svenadlung
-
-# docs
-/docs/ @svenadlung
-
-# demos
-/demos/ @bdbch
+# GitHub configuration
+.github/ @ueberdosis/editor-maintainers
 
 # LICENSE
-LICENSE.md @philipisik
+LICENSE.md @philipisik @ueberdosis/editor-maintainers

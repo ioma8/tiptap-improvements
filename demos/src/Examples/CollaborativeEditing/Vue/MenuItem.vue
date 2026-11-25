@@ -1,7 +1,7 @@
 <template>
   <button
     class="menu-item"
-    :class="{ 'is-active': isActive ? isActive(): null }"
+    :class="{ 'is-active': isActive ? isActive() : null }"
     @click="action"
     :title="title"
   >

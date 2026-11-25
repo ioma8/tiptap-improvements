@@ -1,6 +1,5 @@
 import { Extension } from '@tiptap/core'
 import { NodeSelection, Plugin } from '@tiptap/pm/state'
-import { __serializeForClipboard as serializeForClipboard } from '@tiptap/pm/view'
 
 function removeNode(node) {
   node.parentNode.removeChild(node)
@@ -44,7 +43,8 @@ export default Extension.create({
     }
 
     function dragStart(e, view) {
-      view.composing = true
+      // Must delete this line, Otherwise: Uncaught TypeError: Cannot set property composing of #<EditorView> which has only a getter
+      // view.composing = true
 
       if (!e.dataTransfer) {
         return
@@ -62,7 +62,7 @@ export default Extension.create({
         //   from: view.nodeDOM(view.state.selection.from),
         //   to: view.nodeDOM(view.state.selection.to),
         // })
-        const { dom, text } = serializeForClipboard(view, slice)
+        const { dom, text } = view.serializeForClipboard(slice)
 
         e.dataTransfer.clearData()
         e.dataTransfer.setData('text/html', dom.innerHTML)
@@ -73,6 +73,11 @@ export default Extension.create({
         e.dataTransfer?.setDragImage(el, 0, 0)
         view.dragging = { slice, move: true }
       }
+    }
+
+    function dragEnd(e, view) {
+      // reset the dragging, otherwise wrong content after dragging across multi editors repeatedly
+      view.dragging = null
     }
 
     let dropElement
@@ -86,8 +91,10 @@ export default Extension.create({
           element.draggable = 'true'
           element.classList.add('global-drag-handle')
           element.addEventListener('dragstart', e => dragStart(e, editorView))
+          element.addEventListener('dragend', e => dragEnd(e, editorView))
           dropElement = element
-          document.body.appendChild(dropElement)
+          // append to editor's parentNode (not document.body), to match the logic of dragging across multi editors in pasteRule.ts
+          editorView.dom.parentNode.appendChild(dropElement)
 
           return {
             // update(view, prevState) {

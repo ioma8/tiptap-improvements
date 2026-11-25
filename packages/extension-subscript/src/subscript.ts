@@ -1,7 +1,13 @@
 import { Mark, mergeAttributes } from '@tiptap/core'
+import type { StyleParseRule } from '@tiptap/pm/model'
 
 export interface SubscriptExtensionOptions {
-  HTMLAttributes: Object,
+  /**
+   * HTML attributes to add to the subscript element.
+   * @default {}
+   * @example { class: 'foo' }
+   */
+  HTMLAttributes: Record<string, any>
 }
 
 declare module '@tiptap/core' {
@@ -9,20 +15,27 @@ declare module '@tiptap/core' {
     subscript: {
       /**
        * Set a subscript mark
+       * @example editor.commands.setSubscript()
        */
-      setSubscript: () => ReturnType,
+      setSubscript: () => ReturnType
       /**
        * Toggle a subscript mark
+       * @example editor.commands.toggleSubscript()
        */
-      toggleSubscript: () => ReturnType,
+      toggleSubscript: () => ReturnType
       /**
        * Unset a subscript mark
+       * @example editor.commands.unsetSubscript()
        */
-      unsetSubscript: () => ReturnType,
+      unsetSubscript: () => ReturnType
     }
   }
 }
 
+/**
+ * This extension allows you to create subscript text.
+ * @see https://www.tiptap.dev/api/marks/subscript
+ */
 export const Subscript = Mark.create<SubscriptExtensionOptions>({
   name: 'subscript',
 
@@ -48,7 +61,7 @@ export const Subscript = Mark.create<SubscriptExtensionOptions>({
           // If it falls through we’ll match, and this mark will be applied.
           return null
         },
-      },
+      } as StyleParseRule,
     ]
   },
 
@@ -58,15 +71,21 @@ export const Subscript = Mark.create<SubscriptExtensionOptions>({
 
   addCommands() {
     return {
-      setSubscript: () => ({ commands }) => {
-        return commands.setMark(this.name)
-      },
-      toggleSubscript: () => ({ commands }) => {
-        return commands.toggleMark(this.name)
-      },
-      unsetSubscript: () => ({ commands }) => {
-        return commands.unsetMark(this.name)
-      },
+      setSubscript:
+        () =>
+        ({ commands }) => {
+          return commands.setMark(this.name)
+        },
+      toggleSubscript:
+        () =>
+        ({ commands }) => {
+          return commands.toggleMark(this.name)
+        },
+      unsetSubscript:
+        () =>
+        ({ commands }) => {
+          return commands.unsetMark(this.name)
+        },
     }
   },
 

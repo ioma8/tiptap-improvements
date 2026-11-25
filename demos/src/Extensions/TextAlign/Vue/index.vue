@@ -1,20 +1,46 @@
 <template>
-  <div v-if="editor">
-    <button @click="editor.chain().focus().setTextAlign('left').run()" :class="{ 'is-active': editor.isActive({ textAlign: 'left' }) }">
-      left
-    </button>
-    <button @click="editor.chain().focus().setTextAlign('center').run()" :class="{ 'is-active': editor.isActive({ textAlign: 'center' }) }">
-      center
-    </button>
-    <button @click="editor.chain().focus().setTextAlign('right').run()" :class="{ 'is-active': editor.isActive({ textAlign: 'right' }) }">
-      right
-    </button>
-    <button @click="editor.chain().focus().setTextAlign('justify').run()" :class="{ 'is-active': editor.isActive({ textAlign: 'justify' }) }">
-      justify
-    </button>
-    <button @click="editor.chain().focus().unsetTextAlign().run()">
-      unsetTextAlign
-    </button>
+  <div v-if="editor" class="container">
+    <div class="control-group">
+      <div class="button-group">
+        <button
+          @click="editor.chain().focus().setTextAlign('left').run()"
+          :class="{ 'is-active': editor.isActive({ textAlign: 'left' }) }"
+        >
+          Left
+        </button>
+        <button
+          @click="editor.chain().focus().setTextAlign('center').run()"
+          :class="{ 'is-active': editor.isActive({ textAlign: 'center' }) }"
+        >
+          Center
+        </button>
+        <button
+          @click="editor.chain().focus().setTextAlign('right').run()"
+          :class="{ 'is-active': editor.isActive({ textAlign: 'right' }) }"
+        >
+          Right
+        </button>
+        <button
+          @click="editor.chain().focus().setTextAlign('justify').run()"
+          :class="{ 'is-active': editor.isActive({ textAlign: 'justify' }) }"
+        >
+          Justify
+        </button>
+        <button @click="editor.chain().focus().unsetTextAlign().run()">Unset text align</button>
+        <button
+          @click="editor.chain().focus().toggleTextAlign('right').run()"
+          :class="{ 'is-active': editor.isActive({ textAlign: 'right' }) }"
+        >
+          Toggle Right
+        </button>
+        <button
+          @click="editor.chain().focus().toggleTextAlign('right').run()"
+          :class="{ 'is-active': editor.isActive({ textAlign: 'right' }) }"
+        >
+          Toggle Right
+        </button>
+      </div>
+    </div>
     <editor-content :editor="editor" />
   </div>
 </template>
@@ -25,7 +51,7 @@ import Heading from '@tiptap/extension-heading'
 import Paragraph from '@tiptap/extension-paragraph'
 import Text from '@tiptap/extension-text'
 import TextAlign from '@tiptap/extension-text-align'
-import { Editor, EditorContent } from '@tiptap/vue-3'
+import { Editor, EditorContent } from '@tiptap/vue'
 
 export default {
   components: {
@@ -62,3 +88,48 @@ export default {
   },
 }
 </script>
+
+<style lang="scss">
+/* Basic editor styles */
+.tiptap {
+  :first-child {
+    margin-top: 0;
+  }
+
+  /* Heading styles */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    line-height: 1.1;
+    margin-top: 2.5rem;
+    text-wrap: pretty;
+  }
+
+  h1,
+  h2 {
+    margin-top: 3.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  h1 {
+    font-size: 1.4rem;
+  }
+
+  h2 {
+    font-size: 1.2rem;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+  }
+
+  h4,
+  h5,
+  h6 {
+    font-size: 1rem;
+  }
+}
+</style>

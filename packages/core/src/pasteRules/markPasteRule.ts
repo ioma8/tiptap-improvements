@@ -1,34 +1,36 @@
-import { MarkType } from '@tiptap/pm/model'
+import type { MarkType } from '@tiptap/pm/model'
 
 import { getMarksBetween } from '../helpers/getMarksBetween.js'
-import { PasteRule, PasteRuleFinder } from '../PasteRule.js'
-import { ExtendedRegExpMatchArray } from '../types.js'
+import type { PasteRuleFinder } from '../PasteRule.js'
+import { PasteRule } from '../PasteRule.js'
+import type { ExtendedRegExpMatchArray } from '../types.js'
 import { callOrReturn } from '../utilities/callOrReturn.js'
 
 /**
  * Build an paste rule that adds a mark when the
  * matched text is pasted into it.
+ * @see https://tiptap.dev/docs/editor/extensions/custom-extensions/extend-existing#paste-rules
  */
 export function markPasteRule(config: {
   find: PasteRuleFinder
   type: MarkType
   getAttributes?:
     | Record<string, any>
-    | ((match: ExtendedRegExpMatchArray) => Record<string, any>)
+    | ((match: ExtendedRegExpMatchArray, event: ClipboardEvent) => Record<string, any>)
     | false
     | null
 }) {
   return new PasteRule({
     find: config.find,
-    handler: ({ state, range, match }) => {
-      const attributes = callOrReturn(config.getAttributes, undefined, match)
+    handler: ({ state, range, match, pasteEvent }) => {
+      const attributes = callOrReturn(config.getAttributes, undefined, match, pasteEvent)
 
       if (attributes === false || attributes === null) {
         return null
       }
 
       const { tr } = state
-      const captureGroup = match[match.length - 1]
+      const captureGroup = match.at(-1)
       const fullMatch = match[0]
       let markEnd = range.to
 
@@ -62,7 +64,18 @@ export function markPasteRule(config: {
 
         tr.addMark(range.from + startSpaces, markEnd, config.type.create(attributes || {}))
 
-        tr.removeStoredMark(config.type)
+        // Only remove the stored mark if the match is not at the end of the
+        // pasted text. When a mark extends to the end of the content, removing
+        // it overrides the mark's `inclusive` behavior and incorrectly places
+        // the cursor outside the mark.
+        const isMatchAtEndOfText =
+          match.index !== undefined &&
+          match.input !== undefined &&
+          match.index + match[0].length >= match.input.length
+
+        if (!isMatchAtEndOfText) {
+          tr.removeStoredMark(config.type)
+        }
       }
     },
   })

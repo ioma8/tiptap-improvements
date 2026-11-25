@@ -1,50 +1,74 @@
 {
   "name": "@tiptap/core",
+  "version": "3.30.3",
   "description": "headless rich text editor",
-  "version": "2.2.0-rc.3",
-  "homepage": "https://tiptap.dev",
   "keywords": [
-    "tiptap",
     "headless",
-    "wysiwyg",
+    "prosemirror",
     "text editor",
-    "prosemirror"
+    "tiptap",
+    "wysiwyg"
   ],
+  "homepage": "https://tiptap.dev",
+  "bugs": {
+    "url": "https://github.com/ueberdosis/tiptap/issues"
+  },
   "license": "MIT",
-  "funding": {
-    "type": "github",
-    "url": "https://github.com/sponsors/ueberdosis"
-  },
-  "type": "module",
-  "exports": {
-    ".": {
-      "types": "./dist/packages/core/src/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
-    }
-  },
-  "main": "dist/index.cjs",
-  "module": "dist/index.js",
-  "umd": "dist/index.umd.js",
-  "types": "dist/packages/core/src/index.d.ts",
-  "files": [
-    "src",
-    "dist"
-  ],
-  "devDependencies": {
-    "@tiptap/pm": "^2.2.0-rc.3"
-  },
-  "peerDependencies": {
-    "@tiptap/pm": "^2.0.0"
-  },
   "repository": {
     "type": "git",
     "url": "https://github.com/ueberdosis/tiptap",
     "directory": "packages/core"
   },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/ueberdosis"
+  },
+  "files": [
+    "src",
+    "dist",
+    "jsx-runtime",
+    "jsx-dev-runtime"
+  ],
+  "type": "module",
   "sideEffects": false,
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": {
+        "import": "./dist/index.d.ts",
+        "require": "./dist/index.d.cts"
+      },
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./jsx-runtime": {
+      "types": {
+        "import": "./jsx-runtime/index.d.ts",
+        "require": "./jsx-runtime/index.d.cts"
+      },
+      "import": "./jsx-runtime/index.js",
+      "require": "./jsx-runtime/index.cjs"
+    },
+    "./jsx-dev-runtime": {
+      "types": {
+        "import": "./jsx-dev-runtime/index.d.ts",
+        "require": "./jsx-dev-runtime/index.d.cts"
+      },
+      "import": "./jsx-dev-runtime/index.js",
+      "require": "./jsx-dev-runtime/index.cjs"
+    }
+  },
   "scripts": {
-    "clean": "rm -rf dist",
-    "build": "npm run clean && rollup -c"
+    "build": "vp pack"
+  },
+  "devDependencies": {
+    "@tiptap/pm": "workspace:^",
+    "prosemirror-model": "^1.25.12",
+    "vite-plus": "catalog:"
+  },
+  "peerDependencies": {
+    "@tiptap/pm": "workspace:*"
   }
 }

@@ -1,187 +1,81 @@
 import { keymap } from '@tiptap/pm/keymap'
-import { Node as ProsemirrorNode, Schema } from '@tiptap/pm/model'
-import { Plugin } from '@tiptap/pm/state'
-import { Decoration, EditorView } from '@tiptap/pm/view'
+import type { Schema } from '@tiptap/pm/model'
+import type { Plugin, Transaction } from '@tiptap/pm/state'
+import type { EditorView, MarkViewConstructor, NodeViewConstructor } from '@tiptap/pm/view'
 
-import { Editor } from './Editor.js'
-import { getAttributesFromExtensions } from './helpers/getAttributesFromExtensions.js'
-import { getExtensionField } from './helpers/getExtensionField.js'
-import { getNodeType } from './helpers/getNodeType.js'
-import { getRenderedAttributes } from './helpers/getRenderedAttributes.js'
-import { getSchemaByResolvedExtensions } from './helpers/getSchemaByResolvedExtensions.js'
-import { getSchemaTypeByName } from './helpers/getSchemaTypeByName.js'
-import { isExtensionRulesEnabled } from './helpers/isExtensionRulesEnabled.js'
-import { splitExtensions } from './helpers/splitExtensions.js'
-import { Mark, NodeConfig } from './index.js'
+import type { Editor } from './Editor.js'
+import { DecorationManager, type DecorationManagerEntry } from './decorations/DecorationManager.js'
+import {
+  flattenExtensions,
+  getAttributesFromExtensions,
+  getExtensionField,
+  getMarkType,
+  getNodeType,
+  getRenderedAttributes,
+  getSchemaByResolvedExtensions,
+  getSchemaTypeByName,
+  isExtensionRulesEnabled,
+  resolveExtensions,
+  sortExtensions,
+  splitExtensions,
+} from './helpers/index.js'
+import { updateMarkViewAttributes } from './MarkView.js'
 import { inputRulesPlugin } from './InputRule.js'
+import { Mark, type MarkConfig } from './Mark.js'
 import { pasteRulesPlugin } from './PasteRule.js'
-import { AnyConfig, Extensions, RawCommands } from './types.js'
+import { getSchemaAttributes } from './schema/getSchemaAttributes.js'
+import type { AnyConfig, Extensions, RawCommands, Storage } from './types.js'
 import { callOrReturn } from './utilities/callOrReturn.js'
-import { findDuplicates } from './utilities/findDuplicates.js'
+import { type NodeConfig } from './Node.js'
 
 export class ExtensionManager {
   editor: Editor
 
   schema: Schema
 
+  private readonly hasSchemaSpec: boolean
+
+  /**
+   * A flattened and sorted array of all extensions
+   */
   extensions: Extensions
+
+  /**
+   * A non-flattened array of base extensions (no sub-extensions)
+   */
+  baseExtensions: Extensions
 
   splittableMarks: string[] = []
 
+  nonClearableMarks: string[] = []
+
+  decorationManager: DecorationManager | null = null
+
   constructor(extensions: Extensions, editor: Editor) {
     this.editor = editor
-    this.extensions = ExtensionManager.resolve(extensions)
-    this.schema = getSchemaByResolvedExtensions(this.extensions, editor)
-
-    this.extensions.forEach(extension => {
-      // store extension storage in editor
-      this.editor.extensionStorage[extension.name] = extension.storage
-
-      const context = {
-        name: extension.name,
-        options: extension.options,
-        storage: extension.storage,
-        editor: this.editor,
-        type: getSchemaTypeByName(extension.name, this.schema),
-      }
-
-      if (extension.type === 'mark') {
-        const keepOnSplit = callOrReturn(getExtensionField(extension, 'keepOnSplit', context)) ?? true
-
-        if (keepOnSplit) {
-          this.splittableMarks.push(extension.name)
-        }
-      }
-
-      const onBeforeCreate = getExtensionField<AnyConfig['onBeforeCreate']>(
-        extension,
-        'onBeforeCreate',
-        context,
-      )
-
-      if (onBeforeCreate) {
-        this.editor.on('beforeCreate', onBeforeCreate)
-      }
-
-      const onCreate = getExtensionField<AnyConfig['onCreate']>(extension, 'onCreate', context)
-
-      if (onCreate) {
-        this.editor.on('create', onCreate)
-      }
-
-      const onUpdate = getExtensionField<AnyConfig['onUpdate']>(extension, 'onUpdate', context)
-
-      if (onUpdate) {
-        this.editor.on('update', onUpdate)
-      }
-
-      const onSelectionUpdate = getExtensionField<AnyConfig['onSelectionUpdate']>(
-        extension,
-        'onSelectionUpdate',
-        context,
-      )
-
-      if (onSelectionUpdate) {
-        this.editor.on('selectionUpdate', onSelectionUpdate)
-      }
-
-      const onTransaction = getExtensionField<AnyConfig['onTransaction']>(
-        extension,
-        'onTransaction',
-        context,
-      )
-
-      if (onTransaction) {
-        this.editor.on('transaction', onTransaction)
-      }
-
-      const onFocus = getExtensionField<AnyConfig['onFocus']>(extension, 'onFocus', context)
-
-      if (onFocus) {
-        this.editor.on('focus', onFocus)
-      }
-
-      const onBlur = getExtensionField<AnyConfig['onBlur']>(extension, 'onBlur', context)
-
-      if (onBlur) {
-        this.editor.on('blur', onBlur)
-      }
-
-      const onDestroy = getExtensionField<AnyConfig['onDestroy']>(extension, 'onDestroy', context)
-
-      if (onDestroy) {
-        this.editor.on('destroy', onDestroy)
-      }
-    })
+    this.baseExtensions = extensions
+    this.extensions = resolveExtensions(extensions)
+    this.hasSchemaSpec = editor.options.schemaSpec !== undefined
+    this.schema = getSchemaByResolvedExtensions(this.extensions, editor, editor.options.schemaSpec)
+    this.setupExtensions()
   }
 
-  static resolve(extensions: Extensions): Extensions {
-    const resolvedExtensions = ExtensionManager.sort(ExtensionManager.flatten(extensions))
-    const duplicatedNames = findDuplicates(resolvedExtensions.map(extension => extension.name))
+  static resolve = resolveExtensions
 
-    if (duplicatedNames.length) {
-      console.warn(
-        `[tiptap warn]: Duplicate extension names found: [${duplicatedNames
-          .map(item => `'${item}'`)
-          .join(', ')}]. This can lead to issues.`,
-      )
-    }
+  static sort = sortExtensions
 
-    return resolvedExtensions
-  }
+  static flatten = flattenExtensions
 
-  static flatten(extensions: Extensions): Extensions {
-    return (
-      extensions
-        .map(extension => {
-          const context = {
-            name: extension.name,
-            options: extension.options,
-            storage: extension.storage,
-          }
-
-          const addExtensions = getExtensionField<AnyConfig['addExtensions']>(
-            extension,
-            'addExtensions',
-            context,
-          )
-
-          if (addExtensions) {
-            return [extension, ...this.flatten(addExtensions())]
-          }
-
-          return extension
-        })
-        // `Infinity` will break TypeScript so we set a number that is probably high enough
-        .flat(10)
-    )
-  }
-
-  static sort(extensions: Extensions): Extensions {
-    const defaultPriority = 100
-
-    return extensions.sort((a, b) => {
-      const priorityA = getExtensionField<AnyConfig['priority']>(a, 'priority') || defaultPriority
-      const priorityB = getExtensionField<AnyConfig['priority']>(b, 'priority') || defaultPriority
-
-      if (priorityA > priorityB) {
-        return -1
-      }
-
-      if (priorityA < priorityB) {
-        return 1
-      }
-
-      return 0
-    })
-  }
-
+  /**
+   * Get all commands from the extensions.
+   * @returns An object with all commands where the key is the command name and the value is the command function
+   */
   get commands(): RawCommands {
     return this.extensions.reduce((commands, extension) => {
       const context = {
         name: extension.name,
         options: extension.options,
-        storage: extension.storage,
+        storage: this.editor.extensionStorage[extension.name as keyof Storage],
         editor: this.editor,
         type: getSchemaTypeByName(extension.name, this.schema),
       }
@@ -203,6 +97,10 @@ export class ExtensionManager {
     }, {} as RawCommands)
   }
 
+  /**
+   * Get all registered Prosemirror plugins from the extensions.
+   * @returns An array of Prosemirror plugins
+   */
   get plugins(): Plugin[] {
     const { editor } = this
 
@@ -211,104 +109,166 @@ export class ExtensionManager {
     // so it feels more natural to run plugins at the end of an array first.
     // That’s why we have to reverse the `extensions` array and sort again
     // based on the `priority` option.
-    const extensions = ExtensionManager.sort([...this.extensions].reverse())
+    const extensions = sortExtensions([...this.extensions].reverse())
 
-    const inputRules: any[] = []
-    const pasteRules: any[] = []
-
-    const allPlugins = extensions
-      .map(extension => {
-        const context = {
-          name: extension.name,
-          options: extension.options,
-          storage: extension.storage,
-          editor,
-          type: getSchemaTypeByName(extension.name, this.schema),
-        }
-
-        const plugins: Plugin[] = []
-
-        const addKeyboardShortcuts = getExtensionField<AnyConfig['addKeyboardShortcuts']>(
-          extension,
-          'addKeyboardShortcuts',
-          context,
-        )
-
-        let defaultBindings: Record<string, () => boolean> = {}
-
-        // bind exit handling
-        if (extension.type === 'mark' && extension.config.exitable) {
-          defaultBindings.ArrowRight = () => Mark.handleExit({ editor, mark: extension as Mark })
-        }
-
-        if (addKeyboardShortcuts) {
-          const bindings = Object.fromEntries(
-            Object.entries(addKeyboardShortcuts()).map(([shortcut, method]) => {
-              return [shortcut, () => method({ editor })]
-            }),
-          )
-
-          defaultBindings = { ...defaultBindings, ...bindings }
-        }
-
-        const keyMapPlugin = keymap(defaultBindings)
-
-        plugins.push(keyMapPlugin)
-
-        const addInputRules = getExtensionField<AnyConfig['addInputRules']>(
-          extension,
-          'addInputRules',
-          context,
-        )
-
-        if (isExtensionRulesEnabled(extension, editor.options.enableInputRules) && addInputRules) {
-          inputRules.push(...addInputRules())
-        }
-
-        const addPasteRules = getExtensionField<AnyConfig['addPasteRules']>(
-          extension,
-          'addPasteRules',
-          context,
-        )
-
-        if (isExtensionRulesEnabled(extension, editor.options.enablePasteRules) && addPasteRules) {
-          pasteRules.push(...addPasteRules())
-        }
-
-        const addProseMirrorPlugins = getExtensionField<AnyConfig['addProseMirrorPlugins']>(
-          extension,
-          'addProseMirrorPlugins',
-          context,
-        )
-
-        if (addProseMirrorPlugins) {
-          const proseMirrorPlugins = addProseMirrorPlugins()
-
-          plugins.push(...proseMirrorPlugins)
-        }
-
-        return plugins
-      })
-      .flat()
-
-    return [
-      inputRulesPlugin({
+    const allPlugins = extensions.flatMap(extension => {
+      const context = {
+        name: extension.name,
+        options: extension.options,
+        storage: this.editor.extensionStorage[extension.name as keyof Storage],
         editor,
-        rules: inputRules,
-      }),
-      ...pasteRulesPlugin({
-        editor,
-        rules: pasteRules,
-      }),
-      ...allPlugins,
-    ]
+        type: getSchemaTypeByName(extension.name, this.schema),
+      }
+
+      const plugins: Plugin[] = []
+
+      const addKeyboardShortcuts = getExtensionField<AnyConfig['addKeyboardShortcuts']>(
+        extension,
+        'addKeyboardShortcuts',
+        context,
+      )
+
+      let defaultBindings: Record<string, () => boolean> = {}
+
+      // bind exit handling
+      if (
+        extension.type === 'mark' &&
+        getExtensionField<MarkConfig['exitable']>(extension, 'exitable', context)
+      ) {
+        defaultBindings.ArrowRight = () => Mark.handleExit({ editor, mark: extension as Mark })
+      }
+
+      if (addKeyboardShortcuts) {
+        const bindings = Object.fromEntries(
+          Object.entries(addKeyboardShortcuts()).map(([shortcut, method]) => {
+            return [shortcut, () => method({ editor })]
+          }),
+        )
+
+        defaultBindings = { ...defaultBindings, ...bindings }
+      }
+
+      const keyMapPlugin = keymap(defaultBindings)
+
+      plugins.push(keyMapPlugin)
+
+      const addInputRules = getExtensionField<AnyConfig['addInputRules']>(
+        extension,
+        'addInputRules',
+        context,
+      )
+
+      if (isExtensionRulesEnabled(extension, editor.options.enableInputRules) && addInputRules) {
+        const rules = addInputRules()
+
+        if (rules && rules.length) {
+          const inputResult = inputRulesPlugin({
+            editor,
+            rules,
+          })
+
+          const inputPlugins = Array.isArray(inputResult) ? inputResult : [inputResult]
+
+          plugins.push(...inputPlugins)
+        }
+      }
+
+      const addPasteRules = getExtensionField<AnyConfig['addPasteRules']>(
+        extension,
+        'addPasteRules',
+        context,
+      )
+
+      if (isExtensionRulesEnabled(extension, editor.options.enablePasteRules) && addPasteRules) {
+        const rules = addPasteRules()
+
+        if (rules && rules.length) {
+          const pasteRules = pasteRulesPlugin({ editor, rules })
+
+          plugins.push(...pasteRules)
+        }
+      }
+
+      const addProseMirrorPlugins = getExtensionField<AnyConfig['addProseMirrorPlugins']>(
+        extension,
+        'addProseMirrorPlugins',
+        context,
+      )
+
+      if (addProseMirrorPlugins) {
+        const proseMirrorPlugins = addProseMirrorPlugins()
+
+        plugins.push(...proseMirrorPlugins)
+      }
+
+      return plugins
+    })
+
+    const decorationPlugin = this.createDecorationPlugin()
+
+    if (decorationPlugin) {
+      allPlugins.push(decorationPlugin)
+    }
+
+    return allPlugins
   }
 
+  /**
+   * Aggregates decorations from extensions into a single plugin, or returns null
+   * if none exist. Destroys the previous manager to avoid orphaned listeners.
+   * @returns A ProseMirror plugin or `null`
+   * @example
+   * const plugin = editor.extensionManager.createDecorationPlugin()
+   */
+  createDecorationPlugin(): Plugin | null {
+    const { editor } = this
+
+    this.decorationManager?.destroy()
+
+    const entries: DecorationManagerEntry[] = []
+
+    this.extensions.forEach(extension => {
+      const context = {
+        name: extension.name,
+        options: extension.options,
+        storage: this.editor.extensionStorage[extension.name as keyof Storage],
+        editor,
+        type: getSchemaTypeByName(extension.name, this.schema),
+      }
+
+      const addDecorations = getExtensionField<AnyConfig['addDecorations']>(
+        extension,
+        'addDecorations',
+        context,
+      )
+
+      if (!addDecorations) {
+        return
+      }
+
+      entries.push({ name: extension.name, addDecorations })
+    })
+
+    this.decorationManager = new DecorationManager({ editor, entries })
+
+    return this.decorationManager.plugin
+  }
+
+  /**
+   * Get all attributes from the extensions.
+   * @returns An array of attributes
+   */
   get attributes() {
-    return getAttributesFromExtensions(this.extensions)
+    const attributes = getAttributesFromExtensions(this.extensions)
+
+    return this.hasSchemaSpec ? getSchemaAttributes(attributes, this.schema) : attributes
   }
 
-  get nodeViews() {
+  /**
+   * Get all node views from the extensions.
+   * @returns An object with all node views where the key is the node name and the value is the node view function
+   */
+  get nodeViews(): Record<string, NodeViewConstructor> {
     const { editor } = this
     const { nodeExtensions } = splitExtensions(this.extensions)
 
@@ -322,7 +282,7 @@ export class ExtensionManager {
           const context = {
             name: extension.name,
             options: extension.options,
-            storage: extension.storage,
+            storage: this.editor.extensionStorage[extension.name as keyof Storage],
             editor,
             type: getNodeType(extension.name, this.schema),
           }
@@ -336,26 +296,294 @@ export class ExtensionManager {
             return []
           }
 
-          const nodeview = (
-            node: ProsemirrorNode,
-            view: EditorView,
-            getPos: (() => number) | boolean,
-            decorations: Decoration[],
+          const nodeViewResult = addNodeView()
+
+          if (!nodeViewResult) {
+            return []
+          }
+
+          const nodeview: NodeViewConstructor = (
+            node,
+            view,
+            getPos,
+            decorations,
+            innerDecorations,
           ) => {
             const HTMLAttributes = getRenderedAttributes(node, extensionAttributes)
 
-            return addNodeView()({
-              editor,
+            return nodeViewResult({
+              // pass-through
               node,
-              getPos,
+              view,
+              getPos: getPos as () => number,
               decorations,
-              HTMLAttributes,
+              innerDecorations,
+              // tiptap-specific
+              editor,
               extension,
+              HTMLAttributes,
             })
           }
 
           return [extension.name, nodeview]
         }),
     )
+  }
+
+  /**
+   * Get the composed dispatchTransaction function from all extensions.
+   * @param baseDispatch The base dispatch function (e.g. from the editor or user props)
+   * @returns A composed dispatch function
+   */
+  dispatchTransaction(baseDispatch: (tr: Transaction) => void): (tr: Transaction) => void {
+    const { editor } = this
+    const extensions = sortExtensions([...this.extensions].reverse())
+
+    return extensions.reduceRight((next, extension) => {
+      const context = {
+        name: extension.name,
+        options: extension.options,
+        storage: this.editor.extensionStorage[extension.name as keyof Storage],
+        editor,
+        type: getSchemaTypeByName(extension.name, this.schema),
+      }
+
+      const dispatchTransaction = getExtensionField<AnyConfig['dispatchTransaction']>(
+        extension,
+        'dispatchTransaction',
+        context,
+      )
+
+      if (!dispatchTransaction) {
+        return next
+      }
+
+      return (transaction: Transaction) => {
+        dispatchTransaction.call(context, { transaction, next })
+      }
+    }, baseDispatch)
+  }
+
+  /**
+   * Get the composed transformPastedHTML function from all extensions.
+   * @param baseTransform The base transform function (e.g. from the editor props)
+   * @returns A composed transform function that chains all extension transforms
+   */
+  transformPastedHTML(
+    baseTransform?: (html: string, view?: any) => string,
+  ): (html: string, view?: EditorView) => string {
+    const { editor } = this
+    const extensions = sortExtensions([...this.extensions])
+
+    return extensions.reduce(
+      (transform, extension) => {
+        const context = {
+          name: extension.name,
+          options: extension.options,
+          storage: this.editor.extensionStorage[extension.name as keyof Storage],
+          editor,
+          type: getSchemaTypeByName(extension.name, this.schema),
+        }
+
+        const extensionTransform = getExtensionField<AnyConfig['transformPastedHTML']>(
+          extension,
+          'transformPastedHTML',
+          context,
+        )
+
+        if (!extensionTransform) {
+          return transform
+        }
+
+        return (html: string, view?: any) => {
+          // Chain the transforms: pass the result of the previous transform to the next
+          const transformedHtml = transform(html, view)
+          return extensionTransform.call(context, transformedHtml)
+        }
+      },
+      baseTransform || ((html: string) => html),
+    )
+  }
+
+  get markViews(): Record<string, MarkViewConstructor> {
+    const { editor } = this
+    const { markExtensions } = splitExtensions(this.extensions)
+
+    return Object.fromEntries(
+      markExtensions
+        .filter(extension => !!getExtensionField(extension, 'addMarkView'))
+        .map(extension => {
+          const extensionAttributes = this.attributes.filter(
+            attribute => attribute.type === extension.name,
+          )
+          const context = {
+            name: extension.name,
+            options: extension.options,
+            storage: this.editor.extensionStorage[extension.name as keyof Storage],
+            editor,
+            type: getMarkType(extension.name, this.schema),
+          }
+          const addMarkView = getExtensionField<MarkConfig['addMarkView']>(
+            extension,
+            'addMarkView',
+            context,
+          )
+
+          if (!addMarkView) {
+            return []
+          }
+
+          const markView: MarkViewConstructor = (mark, view, inline) => {
+            const HTMLAttributes = getRenderedAttributes(mark, extensionAttributes)
+
+            return addMarkView()({
+              // pass-through
+              mark,
+              view,
+              inline,
+              // tiptap-specific
+              editor,
+              extension,
+              HTMLAttributes,
+              updateAttributes: (attrs: Record<string, any>) => {
+                updateMarkViewAttributes(mark, editor, attrs)
+              },
+            })
+          }
+
+          return [extension.name, markView]
+        }),
+    )
+  }
+
+  /**
+   * Destroy the extension manager and clean up all extension references
+   * to prevent memory leaks through parent/child extension chains.
+   *
+   * Walks each extension's full parent chain and nulls every forward
+   * `parent.child → current` link where the parent still points to the
+   * current node. This breaks the retention path from module-scope
+   * singleton roots through deep extend() chains.
+   *
+   * Only ancestor `.child` links matching the current chain are cleared.
+   * The `.parent` pointer on ancestors is never touched — extensions
+   * may be shared across live editors, so their own backward references
+   * and non-matching forward links must remain intact.
+   */
+  destroy() {
+    this.decorationManager?.destroy()
+
+    this.extensions.forEach(extension => {
+      let current: any = extension
+
+      while (current.parent) {
+        const parent = current.parent
+
+        if (parent.child === current) {
+          parent.child = null
+        }
+
+        current = parent
+      }
+    })
+
+    this.extensions = []
+    this.baseExtensions = []
+    this.decorationManager = null
+    this.schema = null as any
+    this.editor = null as any
+  }
+
+  /**
+   * Go through all extensions, create extension storages & setup marks
+   * & bind editor event listener.
+   */
+  private setupExtensions() {
+    const extensions = this.extensions
+    // re-initialize the extension storage object instance
+    this.editor.extensionStorage = Object.fromEntries(
+      extensions.map(extension => [extension.name, extension.storage]),
+    ) as unknown as Storage
+
+    extensions.forEach(extension => {
+      const context = {
+        name: extension.name,
+        options: extension.options,
+        storage: this.editor.extensionStorage[extension.name as keyof Storage],
+        editor: this.editor,
+        type: getSchemaTypeByName(extension.name, this.schema),
+      }
+
+      if (extension.type === 'mark') {
+        const keepOnSplit =
+          callOrReturn(getExtensionField(extension, 'keepOnSplit', context)) ?? true
+
+        if (keepOnSplit) {
+          this.splittableMarks.push(extension.name)
+        }
+
+        const clearable =
+          callOrReturn(
+            getExtensionField<MarkConfig['clearable']>(extension, 'clearable', context),
+          ) ?? true
+
+        if (!clearable) {
+          this.nonClearableMarks.push(extension.name)
+        }
+      }
+
+      const onBeforeCreate = getExtensionField<AnyConfig['onBeforeCreate']>(
+        extension,
+        'onBeforeCreate',
+        context,
+      )
+      const onCreate = getExtensionField<AnyConfig['onCreate']>(extension, 'onCreate', context)
+      const onUpdate = getExtensionField<AnyConfig['onUpdate']>(extension, 'onUpdate', context)
+      const onSelectionUpdate = getExtensionField<AnyConfig['onSelectionUpdate']>(
+        extension,
+        'onSelectionUpdate',
+        context,
+      )
+      const onTransaction = getExtensionField<AnyConfig['onTransaction']>(
+        extension,
+        'onTransaction',
+        context,
+      )
+      const onFocus = getExtensionField<AnyConfig['onFocus']>(extension, 'onFocus', context)
+      const onBlur = getExtensionField<AnyConfig['onBlur']>(extension, 'onBlur', context)
+      const onDestroy = getExtensionField<AnyConfig['onDestroy']>(extension, 'onDestroy', context)
+
+      if (onBeforeCreate) {
+        this.editor.on('beforeCreate', onBeforeCreate)
+      }
+
+      if (onCreate) {
+        this.editor.on('create', onCreate)
+      }
+
+      if (onUpdate) {
+        this.editor.on('update', onUpdate)
+      }
+
+      if (onSelectionUpdate) {
+        this.editor.on('selectionUpdate', onSelectionUpdate)
+      }
+
+      if (onTransaction) {
+        this.editor.on('transaction', onTransaction)
+      }
+
+      if (onFocus) {
+        this.editor.on('focus', onFocus)
+      }
+
+      if (onBlur) {
+        this.editor.on('blur', onBlur)
+      }
+
+      if (onDestroy) {
+        this.editor.on('destroy', onDestroy)
+      }
+    })
   }
 }

@@ -1,5 +1,5 @@
-import { Node, NodeType } from '@tiptap/pm/model'
-import { EditorState } from '@tiptap/pm/state'
+import type { Node as PMNode, NodeType } from '@tiptap/pm/model'
+import type { EditorState } from '@tiptap/pm/state'
 
 /**
  * Finds the first node of a given type or name in the current selection.
@@ -9,11 +9,16 @@ import { EditorState } from '@tiptap/pm/state'
  * @param maxDepth The maximum depth to search.
  * @returns The node and the depth as an array.
  */
-export const getNodeAtPosition = (state: EditorState, typeOrName: string | NodeType, pos: number, maxDepth = 20) => {
+export const getNodeAtPosition = (
+  state: EditorState,
+  typeOrName: string | NodeType,
+  pos: number,
+  maxDepth = 20,
+) => {
   const $pos = state.doc.resolve(pos)
 
   let currentDepth = maxDepth
-  let node: Node | null = null
+  let node: PMNode | null = null
 
   while (currentDepth > 0 && node === null) {
     const currentNode = $pos.node(currentDepth)
@@ -25,5 +30,5 @@ export const getNodeAtPosition = (state: EditorState, typeOrName: string | NodeT
     }
   }
 
-  return [node, currentDepth] as [Node | null, number]
+  return [node, currentDepth] as [PMNode | null, number]
 }

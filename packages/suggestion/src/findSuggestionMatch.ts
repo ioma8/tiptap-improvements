@@ -1,9 +1,11 @@
-import { escapeForRegEx, Range } from '@tiptap/core'
-import { ResolvedPos } from '@tiptap/pm/model'
+import type { Range } from '@tiptap/core'
+import { escapeForRegEx } from '@tiptap/core'
+import type { ResolvedPos } from '@tiptap/pm/model'
 
 export interface Trigger {
   char: string
   allowSpaces: boolean
+  allowToIncludeChar: boolean
   allowedPrefixes: string[] | null
   startOfLine: boolean
   $position: ResolvedPos
@@ -17,15 +19,23 @@ export type SuggestionMatch = {
 
 export function findSuggestionMatch(config: Trigger): SuggestionMatch {
   const {
-    char, allowSpaces, allowedPrefixes, startOfLine, $position,
+    char,
+    allowSpaces: allowSpacesOption,
+    allowToIncludeChar,
+    allowedPrefixes,
+    startOfLine,
+    $position,
   } = config
+
+  const allowSpaces = allowSpacesOption && !allowToIncludeChar
 
   const escapedChar = escapeForRegEx(char)
   const suffix = new RegExp(`\\s${escapedChar}$`)
   const prefix = startOfLine ? '^' : ''
+  const finalEscapedChar = allowToIncludeChar ? '' : escapedChar
   const regexp = allowSpaces
-    ? new RegExp(`${prefix}${escapedChar}.*?(?=\\s${escapedChar}|$)`, 'gm')
-    : new RegExp(`${prefix}(?:^)?${escapedChar}[^\\s${escapedChar}]*`, 'gm')
+    ? new RegExp(`${prefix}${escapedChar}.*?(?=\\s${finalEscapedChar}|$)`, 'gm')
+    : new RegExp(`${prefix}(?:^)?${escapedChar}[^\\s${finalEscapedChar}]*`, 'gm')
 
   const text = $position.nodeBefore?.isText && $position.nodeBefore.text
 
@@ -43,7 +53,9 @@ export function findSuggestionMatch(config: Trigger): SuggestionMatch {
   // JavaScript doesn't have lookbehinds. This hacks a check that first character
   // is a space or the start of the line
   const matchPrefix = match.input.slice(Math.max(0, match.index - 1), match.index)
-  const matchPrefixIsAllowed = new RegExp(`^[${allowedPrefixes?.join('')}\0]?$`).test(matchPrefix)
+  const matchPrefixIsAllowed = new RegExp(
+    `^[${allowedPrefixes?.map(escapeForRegEx).join('')}\0]?$`,
+  ).test(matchPrefix)
 
   if (allowedPrefixes !== null && !matchPrefixIsAllowed) {
     return null

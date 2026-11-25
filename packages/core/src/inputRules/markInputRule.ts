@@ -1,17 +1,20 @@
-import { MarkType } from '@tiptap/pm/model'
+import type { MarkType } from '@tiptap/pm/model'
 
 import { getMarksBetween } from '../helpers/getMarksBetween.js'
-import { InputRule, InputRuleFinder } from '../InputRule.js'
-import { ExtendedRegExpMatchArray } from '../types.js'
+import type { InputRuleFinder } from '../InputRule.js'
+import { InputRule } from '../InputRule.js'
+import type { ExtendedRegExpMatchArray } from '../types.js'
 import { callOrReturn } from '../utilities/callOrReturn.js'
 
 /**
  * Build an input rule that adds a mark when the
  * matched text is typed into it.
+ * @see https://tiptap.dev/docs/editor/extensions/custom-extensions/extend-existing#input-rules
  */
 export function markInputRule(config: {
   find: InputRuleFinder
   type: MarkType
+  undoable?: boolean
   getAttributes?:
     | Record<string, any>
     | ((match: ExtendedRegExpMatchArray) => Record<string, any>)
@@ -28,7 +31,7 @@ export function markInputRule(config: {
       }
 
       const { tr } = state
-      const captureGroup = match[match.length - 1]
+      const captureGroup = match.at(-1)
       const fullMatch = match[0]
 
       if (captureGroup) {
@@ -64,5 +67,6 @@ export function markInputRule(config: {
         tr.removeStoredMark(config.type)
       }
     },
+    undoable: config.undoable,
   })
 }

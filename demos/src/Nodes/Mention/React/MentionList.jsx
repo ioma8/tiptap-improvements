@@ -1,11 +1,8 @@
 import './MentionList.scss'
 
-import React, {
-  forwardRef, useEffect, useImperativeHandle,
-  useState,
-} from 'react'
+import React, { useEffect, useImperativeHandle, useState } from 'react'
 
-export default forwardRef((props, ref) => {
+export default props => {
   const [selectedIndex, setSelectedIndex] = useState(0)
 
   const selectItem = index => {
@@ -30,7 +27,7 @@ export default forwardRef((props, ref) => {
 
   useEffect(() => setSelectedIndex(0), [props.items])
 
-  useImperativeHandle(ref, () => ({
+  useImperativeHandle(props.ref, () => ({
     onKeyDown: ({ event }) => {
       if (event.key === 'ArrowUp') {
         upHandler()
@@ -51,20 +48,28 @@ export default forwardRef((props, ref) => {
     },
   }))
 
-  return (
-    <div className="items">
-      {props.items.length
-        ? props.items.map((item, index) => (
-          <button
-            className={`item ${index === selectedIndex ? 'is-selected' : ''}`}
-            key={index}
-            onClick={() => selectItem(index)}
-          >
-            {item}
-          </button>
-        ))
-        : <div className="item">No result</div>
-      }
-    </div>
-  )
-})
+  let content
+
+  if (props.loading) {
+    content = (
+      <div className="item loading">
+        <span className="loading-dot" />
+        Loading…
+      </div>
+    )
+  } else if (props.items.length) {
+    content = props.items.map((item, index) => (
+      <button
+        className={index === selectedIndex ? 'is-selected' : ''}
+        key={index}
+        onClick={() => selectItem(index)}
+      >
+        {item}
+      </button>
+    ))
+  } else {
+    content = <div className="item">No result</div>
+  }
+
+  return <div className="dropdown-menu">{content}</div>
+}

@@ -1,20 +1,20 @@
 import './styles.scss'
 
 import Document from '@tiptap/extension-document'
-import Dropcursor from '@tiptap/extension-dropcursor'
 import Image from '@tiptap/extension-image'
 import Paragraph from '@tiptap/extension-paragraph'
 import Text from '@tiptap/extension-text'
+import { Dropcursor } from '@tiptap/extensions'
 import { EditorContent, useEditor } from '@tiptap/react'
-import React, { useCallback } from 'react'
+import { useCallback } from 'react'
 
 export default () => {
   const editor = useEditor({
     extensions: [Document, Paragraph, Text, Image, Dropcursor],
     content: `
         <p>This is a basic example of implementing images. Drag to re-order.</p>
-        <img src="https://source.unsplash.com/8xznAGy4HcY/800x400" />
-        <img src="https://source.unsplash.com/K9QHL52rE2k/800x400" />
+        <img src="https://placehold.co/600x400" />
+        <img src="https://placehold.co/800x400" />
       `,
   })
 
@@ -31,9 +31,13 @@ export default () => {
   }
 
   return (
-    <div>
-      <button onClick={addImage}>setImage</button>
+    <>
+      <div className="control-group">
+        <div className="button-group">
+          <button onClick={addImage}>Set image</button>
+        </div>
+      </div>
       <EditorContent editor={editor} />
-    </div>
+    </>
   )
 }

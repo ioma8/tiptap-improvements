@@ -6,9 +6,9 @@
 import Collaboration from '@tiptap/extension-collaboration'
 import Document from '@tiptap/extension-document'
 import Paragraph from '@tiptap/extension-paragraph'
-import Placeholder from '@tiptap/extension-placeholder'
 import Text from '@tiptap/extension-text'
-import { Editor, EditorContent } from '@tiptap/vue-3'
+import { Placeholder } from '@tiptap/extensions'
+import { Editor, EditorContent } from '@tiptap/vue'
 import { WebrtcProvider } from 'y-webrtc'
 import * as Y from 'yjs'
 
@@ -38,7 +38,8 @@ export default {
           document: ydoc,
         }),
         Placeholder.configure({
-          placeholder: 'Write something … It’ll be shared with everyone else looking at this example.',
+          placeholder:
+            'Write something … It’ll be shared with everyone else looking at this example.',
         }),
       ],
     })
@@ -53,18 +54,18 @@ export default {
 
 <style lang="scss">
 /* Basic editor styles */
-tiptap {
-  > * + * {
-    margin-top: 0.75em;
+.tiptap {
+  :first-child {
+    margin-top: 0;
   }
-}
 
-/* Placeholder (at the top) */
-tiptap p.is-editor-empty:first-child::before {
-  content: attr(data-placeholder);
-  float: left;
-  color: #adb5bd;
-  pointer-events: none;
-  height: 0;
+  /* Placeholder (at the top) */
+  p.is-editor-empty:first-child::before {
+    color: var(--gray-4);
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
 }
 </style>
