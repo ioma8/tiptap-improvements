@@ -1,6 +1,6 @@
 import './styles.scss'
 
-import { EditorContent, useEditor } from '@tiptap/react'
+import { EditorContent, useEditor, useEditorState } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import React, { useCallback, useEffect, useState } from 'react'
 
@@ -31,23 +31,20 @@ export default () => {
 
   const setContent = useCallback(() => {
     // You can pass a JSON document to the editor.
-    editor.commands.setContent(
-      {
-        type: 'doc',
-        content: [
-          {
-            type: 'paragraph',
-            content: [
-              {
-                type: 'text',
-                text: 'It’s 19871. You can’t turn on a radio, or go to a mall without hearing Olivia Newton-John’s hit song, Physical.',
-              },
-            ],
-          },
-        ],
-      },
-      true,
-    )
+    editor.commands.setContent({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'It’s 19871. You can’t turn on a radio, or go to a mall without hearing Olivia Newton-John’s hit song, Physical.',
+            },
+          ],
+        },
+      ],
+    })
 
     // It’s likely that you’d like to focus the Editor after most commands.
     editor.commands.focus()
@@ -57,37 +54,47 @@ export default () => {
     editor.chain().clearContent(true).focus().run()
   }, [editor])
 
+  const { isBold, isItalic } = useEditorState({
+    editor,
+    selector: ctx => ({
+      isBold: ctx.editor.isActive('bold') ?? false,
+      isItalic: ctx.editor.isActive('italic') ?? false,
+    }),
+  })
+
   if (!editor) {
     return null
   }
 
   return (
     <>
-      <div className="actions">
-        <button className="button" onClick={setContent}>
-          Set Content
-        </button>
-        <button className="button" onClick={clearContent}>
-          Clear Content
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          className={editor.isActive('bold') ? 'is-active' : ''}
-        >
-          Bold
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          className={editor.isActive('italic') ? 'is-active' : ''}
-        >
-          Italic
-        </button>
+      <div className="control-group">
+        <div className="button-group">
+          <button className="button" onClick={setContent}>
+            Set content
+          </button>
+          <button className="button" onClick={clearContent}>
+            Clear content
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            className={isBold ? 'is-active' : ''}
+          >
+            Bold
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+            className={isItalic ? 'is-active' : ''}
+          >
+            Italic
+          </button>
+        </div>
       </div>
 
       <EditorContent editor={editor} />
 
-      <div className="export">
-        <h3>JSON</h3>
+      <div className="output-group">
+        <label>JSON</label>
         <pre>
           <code>{JSON.stringify(json, null, 2)}</code>
         </pre>

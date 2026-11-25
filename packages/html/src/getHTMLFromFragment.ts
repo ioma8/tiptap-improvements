@@ -1,20 +1,49 @@
-import { DOMSerializer, Node, Schema } from '@tiptap/pm/model'
-import { createHTMLDocument, VHTMLDocument } from 'zeed-dom'
+import type { Node as PMNode, Schema } from '@tiptap/pm/model'
+import { DOMSerializer } from '@tiptap/pm/model'
 
-export function getHTMLFromFragment(doc: Node, schema: Schema, options?: { document?: Document }): string {
+/**
+ * Returns the HTML string representation of a given document node.
+ *
+ * @param doc - The document node to serialize.
+ * @param schema - The Prosemirror schema to use for serialization.
+ * @returns The HTML string representation of the document fragment.
+ *
+ * @example
+ * ```typescript
+ * const html = getHTMLFromFragment(doc, schema)
+ * ```
+ */
+export function getHTMLFromFragment(
+  doc: PMNode,
+  schema: Schema,
+  options?: { document?: Document },
+): string {
+  if (typeof window === 'undefined') {
+    throw new Error(
+      'getHTMLFromFragment can only be used in a browser environment\nIf you want to use this in a Node environment, use the `@tiptap/html/server` import instead.',
+    )
+  }
+
   if (options?.document) {
-    // The caller is relying on their own document implementation. Use this
-    // instead of the default zeed-dom.
     const wrap = options.document.createElement('div')
 
-    DOMSerializer.fromSchema(schema).serializeFragment(doc.content, { document: options.document }, wrap)
+    DOMSerializer.fromSchema(schema).serializeFragment(
+      doc.content,
+      { document: options.document },
+      wrap,
+    )
     return wrap.innerHTML
   }
 
-  // Use zeed-dom for serialization.
-  const zeedDocument = DOMSerializer.fromSchema(schema).serializeFragment(doc.content, {
-    document: createHTMLDocument() as unknown as Document,
-  }) as unknown as VHTMLDocument
+  const wrap = window.document.createElement('div')
 
-  return zeedDocument.render()
+  DOMSerializer.fromSchema(schema).serializeFragment(
+    doc.content,
+    {
+      document: window.document as unknown as Document,
+    },
+    wrap,
+  )
+
+  return wrap.innerHTML
 }

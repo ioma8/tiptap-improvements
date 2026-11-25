@@ -1,28 +1,50 @@
-import { ParseOptions } from '@tiptap/pm/model'
+import type { Fragment, Node as PMNode, ParseOptions } from '@tiptap/pm/model'
 
-import { Content, RawCommands } from '../types.js'
+import type { Content, RawCommands } from '../types.js'
+
+export interface InsertContentOptions {
+  /**
+   * Options for parsing the content.
+   */
+  parseOptions?: ParseOptions
+
+  /**
+   * Whether to update the selection after inserting the content.
+   */
+  updateSelection?: boolean
+  applyInputRules?: boolean
+  applyPasteRules?: boolean
+}
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     insertContent: {
       /**
        * Insert a node or string of HTML at the current position.
+       * @example editor.commands.insertContent('<h1>Example</h1>')
+       * @example editor.commands.insertContent('<h1>Example</h1>', { updateSelection: false })
        */
       insertContent: (
-        value: Content,
-        options?: {
-          parseOptions?: ParseOptions
-          updateSelection?: boolean
-        },
+        /**
+         * The ProseMirror content to insert.
+         */
+        value: Content | PMNode | Fragment,
+
+        /**
+         * Optional options
+         */
+        options?: InsertContentOptions,
       ) => ReturnType
     }
   }
 }
 
-export const insertContent: RawCommands['insertContent'] = (value, options) => ({ tr, commands }) => {
-  return commands.insertContentAt(
-    { from: tr.selection.from, to: tr.selection.to },
-    value,
-    options,
-  )
-}
+export const insertContent: RawCommands['insertContent'] =
+  (value, options) =>
+  ({ tr, commands }) => {
+    return commands.insertContentAt(
+      { from: tr.selection.from, to: tr.selection.to },
+      value,
+      options,
+    )
+  }

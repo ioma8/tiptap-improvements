@@ -1,9 +1,13 @@
+import type { Editor } from '@tiptap/core'
 import { getAttributes } from '@tiptap/core'
-import { MarkType } from '@tiptap/pm/model'
+import type { MarkType } from '@tiptap/pm/model'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 
 type ClickHandlerOptions = {
   type: MarkType
+  editor: Editor
+  openOnClick?: boolean
+  enableClickSelection?: boolean
 }
 
 export function clickHandler(options: ClickHandlerOptions): Plugin {
@@ -15,21 +19,54 @@ export function clickHandler(options: ClickHandlerOptions): Plugin {
           return false
         }
 
-        const attrs = getAttributes(view.state, options.type.name)
-        const link = (event.target as HTMLLinkElement)
-
-        const href = link?.href ?? attrs.href
-        const target = link?.target ?? attrs.target
-
-        if (link && href) {
-          if (view.editable) {
-            window.open(href, target)
-          }
-
-          return true
+        if (!view.editable) {
+          return false
         }
 
-        return false
+        let link: HTMLAnchorElement | null = null
+
+        if (event.target instanceof HTMLAnchorElement) {
+          link = event.target
+        } else {
+          const target = event.target as HTMLElement | null
+          if (!target) {
+            return false
+          }
+
+          const root = options.editor.view.dom
+
+          // Tntentionally limit the lookup to the editor root.
+          // Using tag names like DIV as boundaries breaks with custom NodeViews,
+          link = target.closest<HTMLAnchorElement>('a')
+
+          if (link && !root.contains(link)) {
+            link = null
+          }
+        }
+
+        if (!link) {
+          return false
+        }
+
+        let handled = false
+
+        if (options.enableClickSelection) {
+          const commandResult = options.editor.commands.extendMarkRange(options.type.name)
+          handled = commandResult
+        }
+
+        if (options.openOnClick) {
+          const attrs = getAttributes(view.state, options.type.name)
+          const href = link.href ?? attrs.href
+          const target = link.target ?? attrs.target
+
+          if (href) {
+            window.open(href, target)
+            handled = true
+          }
+        }
+
+        return handled
       },
     },
   })

@@ -1,24 +1,28 @@
-import { Editor } from '@tiptap/core'
-import { MarkType } from '@tiptap/pm/model'
+import type { Editor } from '@tiptap/core'
+import type { MarkType } from '@tiptap/pm/model'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { find } from 'linkifyjs'
 
+import type { LinkOptions } from '../link.js'
+
 type PasteHandlerOptions = {
   editor: Editor
+  defaultProtocol: string
   type: MarkType
-  linkOnPaste?: boolean
+  shouldAutoLink?: LinkOptions['shouldAutoLink']
 }
 
 export function pasteHandler(options: PasteHandlerOptions): Plugin {
   return new Plugin({
     key: new PluginKey('handlePasteLink'),
     props: {
-      handlePaste: (view, event, slice) => {
+      handlePaste: (view, _event, slice) => {
+        const { shouldAutoLink } = options
         const { state } = view
         const { selection } = state
+        const { empty } = selection
 
-        // Do not proceed if in code block.
-        if (state.doc.resolve(selection.from).parent.type.spec.code) {
+        if (empty) {
           return false
         }
 
@@ -28,86 +32,21 @@ export function pasteHandler(options: PasteHandlerOptions): Plugin {
           textContent += node.textContent
         })
 
-        let isAlreadyLink = false
+        const link = find(textContent, { defaultProtocol: options.defaultProtocol }).find(
+          item => item.isLink && item.value === textContent,
+        )
 
-        slice.content.descendants(node => {
-          if (node.marks.some(mark => mark.type.name === options.type.name)) {
-            isAlreadyLink = true
-          }
-        })
-
-        if (isAlreadyLink) {
-          return
-        }
-
-        const link = find(textContent).find(item => item.isLink && item.value === textContent)
-
-        if (!selection.empty && options.linkOnPaste) {
-          const pastedLink = link?.href || null
-
-          if (pastedLink) {
-            options.editor.commands.setMark(options.type, { href: pastedLink })
-
-            return true
-          }
-        }
-
-        const firstChildIsText = slice.content.firstChild?.type.name === 'text'
-        const firstChildContainsLinkMark = slice.content.firstChild?.marks.some(mark => mark.type.name === options.type.name)
-
-        if ((firstChildIsText && firstChildContainsLinkMark) || !options.linkOnPaste) {
+        if (
+          !textContent ||
+          !link ||
+          (shouldAutoLink !== undefined && !shouldAutoLink(link.value))
+        ) {
           return false
         }
 
-        if (link && selection.empty) {
-          options.editor.commands.insertContent(`<a href="${link.href}">${link.href}</a>`)
-
-          return true
-        }
-
-        const { tr } = state
-        let deleteOnly = false
-
-        if (!selection.empty) {
-          deleteOnly = true
-
-          tr.delete(selection.from, selection.to)
-        }
-
-        let currentPos = selection.from
-        let fragmentLinks = []
-
-        slice.content.forEach(node => {
-          fragmentLinks = find(node.textContent)
-
-          tr.insert(currentPos - 1, node)
-
-          if (fragmentLinks.length > 0) {
-            deleteOnly = false
-
-            fragmentLinks.forEach(fragmentLink => {
-              const linkStart = currentPos + fragmentLink.start
-              const linkEnd = currentPos + fragmentLink.end
-              const hasMark = tr.doc.rangeHasMark(linkStart, linkEnd, options.type)
-
-              if (!hasMark) {
-                tr.addMark(linkStart, linkEnd, options.type.create({ href: fragmentLink.href }))
-              }
-            })
-
-          }
-          currentPos += node.nodeSize
+        return options.editor.commands.setMark(options.type, {
+          href: link.href,
         })
-
-        const hasFragmentLinks = fragmentLinks.length > 0
-
-        if (tr.docChanged && !deleteOnly && hasFragmentLinks) {
-          options.editor.view.dispatch(tr)
-
-          return true
-        }
-
-        return false
       },
     },
   })

@@ -1,149 +1,183 @@
-import {
-  Fragment, Node as ProseMirrorNode, NodeType, Slice,
-} from '@tiptap/pm/model'
+import type { Node as PMNode, NodeType } from '@tiptap/pm/model'
+import { Fragment, Slice } from '@tiptap/pm/model'
 import { TextSelection } from '@tiptap/pm/state'
-import { canSplit } from '@tiptap/pm/transform'
+import { canSplit, Transform } from '@tiptap/pm/transform'
 
 import { getNodeType } from '../helpers/getNodeType.js'
 import { getSplittedAttributes } from '../helpers/getSplittedAttributes.js'
-import { RawCommands } from '../types.js'
+import type { RawCommands } from '../types.js'
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     splitListItem: {
       /**
        * Splits one list item into two list items.
+       * @param typeOrName The type or name of the node.
+       * @param overrideAttrs The attributes to ensure on the new node.
+       * @example editor.commands.splitListItem('listItem')
        */
-      splitListItem: (typeOrName: string | NodeType) => ReturnType
+      splitListItem: (
+        typeOrName: string | NodeType,
+        overrideAttrs?: Record<string, any>,
+      ) => ReturnType
     }
   }
 }
 
-export const splitListItem: RawCommands['splitListItem'] = typeOrName => ({
-  tr, state, dispatch, editor,
-}) => {
-  const type = getNodeType(typeOrName, state.schema)
-  const { $from, $to } = state.selection
+export const splitListItem: RawCommands['splitListItem'] =
+  (typeOrName, overrideAttrs = {}) =>
+  ({ tr, state, dispatch, editor }) => {
+    const type = getNodeType(typeOrName, state.schema)
+    const { $from, $to } = state.selection
 
-  // @ts-ignore
-  // eslint-disable-next-line
-    const node: ProseMirrorNode = state.selection.node
+    // @ts-ignore
+    // oxlint-disable-next-line
+    const node: PMNode = state.selection.node
 
-  if ((node && node.isBlock) || $from.depth < 2 || !$from.sameParent($to)) {
-    return false
-  }
+    if ((node && node.isBlock) || $from.depth < 2 || !$from.sameParent($to)) {
+      return false
+    }
 
-  const grandParent = $from.node(-1)
+    const grandParent = $from.node(-1)
 
-  if (grandParent.type !== type) {
-    return false
-  }
+    if (grandParent.type !== type) {
+      return false
+    }
 
-  const extensionAttributes = editor.extensionManager.attributes
+    const extensionAttributes = editor.extensionManager.attributes
 
-  if ($from.parent.content.size === 0 && $from.node(-1).childCount === $from.indexAfter(-1)) {
-    // In an empty block. If this is a nested list, the wrapping
-    // list item should be split. Otherwise, bail out and let next
-    // command handle lifting.
-    if (
-      $from.depth === 2
-        || $from.node(-3).type !== type
-        || $from.index(-2) !== $from.node(-2).childCount - 1
-    ) {
+    if ($from.parent.content.size === 0 && $from.node(-1).childCount === $from.indexAfter(-1)) {
+      // In an empty block. If this is a nested list, the wrapping
+      // list item should be split. Otherwise, bail out and let next
+      // command handle lifting.
+      if (
+        $from.depth === 2 ||
+        $from.node(-3).type !== type ||
+        $from.index(-2) !== $from.node(-2).childCount - 1
+      ) {
+        return false
+      }
+
+      if (dispatch) {
+        let wrap = Fragment.empty
+        // oxlint-disable-next-line
+        const depthBefore = $from.index(-1) ? 1 : $from.index(-2) ? 2 : 3
+
+        // Build a fragment containing empty versions of the structure
+        // from the outer list item to the parent node of the cursor
+        for (let d = $from.depth - depthBefore; d >= $from.depth - 3; d -= 1) {
+          wrap = Fragment.from($from.node(d).copy(wrap))
+        }
+
+        const depthAfter =
+          // oxlint-disable-next-line no-nested-ternary
+          $from.indexAfter(-1) < $from.node(-2).childCount
+            ? 1
+            : $from.indexAfter(-2) < $from.node(-3).childCount
+              ? 2
+              : 3
+
+        // Add a second list item with an empty default start node
+        const newNextTypeAttributes = {
+          ...getSplittedAttributes(extensionAttributes, $from.node().type.name, $from.node().attrs),
+          ...overrideAttrs,
+        }
+        const nextType =
+          type.contentMatch.defaultType?.createAndFill(newNextTypeAttributes) || undefined
+
+        wrap = wrap.append(Fragment.from(type.createAndFill(null, nextType) || undefined))
+
+        const start = $from.before($from.depth - (depthBefore - 1))
+
+        tr.replace(start, $from.after(-depthAfter), new Slice(wrap, 4 - depthBefore, 0))
+
+        let sel = -1
+
+        tr.doc.nodesBetween(start, tr.doc.content.size, (n, pos) => {
+          if (sel > -1) {
+            return false
+          }
+
+          if (n.isTextblock && n.content.size === 0) {
+            sel = pos + 1
+          }
+        })
+
+        if (sel > -1) {
+          tr.setSelection(TextSelection.near(tr.doc.resolve(sel)))
+        }
+
+        tr.scrollIntoView()
+      }
+
+      return true
+    }
+
+    const nextType = $to.pos === $from.end() ? grandParent.contentMatchAt(0).defaultType : null
+
+    const newTypeAttributes = {
+      ...getSplittedAttributes(extensionAttributes, grandParent.type.name, grandParent.attrs),
+      ...overrideAttrs,
+    }
+    const newNextTypeAttributes = {
+      ...getSplittedAttributes(extensionAttributes, $from.node().type.name, $from.node().attrs),
+      ...overrideAttrs,
+    }
+
+    // `Transform.split` only ever applies `types` to the node created *after* the split, so
+    // attributes that should not survive a split (`keepOnSplit: false`) normally land on the
+    // trailing item, which is the newly created one. When the cursor sits at the very start
+    // of the item, that is inverted: the empty new item is the *leading* one and the trailing
+    // item is the original content. Detect that case and swap the two sets of attributes.
+    const splitsAtStartOfItem = $from.parentOffset === 0 && $from.index(-1) === 0
+    const itemStart = $from.before(-1)
+
+    // The trailing item keeps the attributes of the item being split when it is the half that
+    // carries the content over; the reset is applied to the leading item after the split.
+    const trailingTypeAttributes = splitsAtStartOfItem ? grandParent.attrs : newTypeAttributes
+
+    const types = nextType
+      ? [
+          { type, attrs: trailingTypeAttributes },
+          { type: nextType, attrs: newNextTypeAttributes },
+        ]
+      : [{ type, attrs: trailingTypeAttributes }]
+
+    // Deleting the selection can change what the split would produce, so the split has to be
+    // validated against the document as it will look after the deletion. Simulate the deletion
+    // on a scratch transform instead of mutating `tr`: the shared transaction is dispatched even
+    // when a command returns `false`, so it must stay untouched until the split is known to be
+    // possible.
+    const deletedTr =
+      $from.pos === $to.pos ? null : new Transform(tr.doc).delete($from.pos, $to.pos)
+    const splitDoc = deletedTr ? deletedTr.doc : tr.doc
+    const splitPos = deletedTr ? deletedTr.mapping.map($from.pos) : $from.pos
+
+    if (!canSplit(splitDoc, splitPos, 2)) {
       return false
     }
 
     if (dispatch) {
-      let wrap = Fragment.empty
-      // eslint-disable-next-line
-        const depthBefore = $from.index(-1) ? 1 : $from.index(-2) ? 2 : 3
+      const { selection, storedMarks } = state
+      const { splittableMarks } = editor.extensionManager
+      const marks = storedMarks || (selection.$to.parentOffset && selection.$from.marks())
+      const mapFrom = tr.steps.length
 
-      // Build a fragment containing empty versions of the structure
-      // from the outer list item to the parent node of the cursor
-      for (let d = $from.depth - depthBefore; d >= $from.depth - 3; d -= 1) {
-        wrap = Fragment.from($from.node(d).copy(wrap))
+      tr.delete($from.pos, $to.pos)
+      tr.split(tr.mapping.slice(mapFrom).map($from.pos), 2, types).scrollIntoView()
+
+      if (splitsAtStartOfItem) {
+        tr.setNodeMarkup(itemStart, undefined, newTypeAttributes)
       }
 
-      // eslint-disable-next-line
-        const depthAfter = $from.indexAfter(-1) < $from.node(-2).childCount ? 1 : $from.indexAfter(-2) < $from.node(-3).childCount ? 2 : 3
-
-      // Add a second list item with an empty default start node
-      const newNextTypeAttributes = getSplittedAttributes(
-        extensionAttributes,
-        $from.node().type.name,
-        $from.node().attrs,
-      )
-      const nextType = type.contentMatch.defaultType?.createAndFill(newNextTypeAttributes) || undefined
-
-      wrap = wrap.append(Fragment.from(type.createAndFill(null, nextType) || undefined))
-
-      const start = $from.before($from.depth - (depthBefore - 1))
-
-      tr.replace(start, $from.after(-depthAfter), new Slice(wrap, 4 - depthBefore, 0))
-
-      let sel = -1
-
-      tr.doc.nodesBetween(start, tr.doc.content.size, (n, pos) => {
-        if (sel > -1) {
-          return false
-        }
-
-        if (n.isTextblock && n.content.size === 0) {
-          sel = pos + 1
-        }
-      })
-
-      if (sel > -1) {
-        tr.setSelection(TextSelection.near(tr.doc.resolve(sel)))
+      if (!marks || !dispatch) {
+        return true
       }
 
-      tr.scrollIntoView()
+      const filteredMarks = marks.filter(mark => splittableMarks.includes(mark.type.name))
+
+      tr.ensureMarks(filteredMarks)
     }
 
     return true
   }
-
-  const nextType = $to.pos === $from.end() ? grandParent.contentMatchAt(0).defaultType : null
-
-  const newTypeAttributes = getSplittedAttributes(
-    extensionAttributes,
-    grandParent.type.name,
-    grandParent.attrs,
-  )
-  const newNextTypeAttributes = getSplittedAttributes(
-    extensionAttributes,
-    $from.node().type.name,
-    $from.node().attrs,
-  )
-
-  tr.delete($from.pos, $to.pos)
-
-  const types = nextType
-    ? [
-      { type, attrs: newTypeAttributes },
-      { type: nextType, attrs: newNextTypeAttributes },
-    ]
-    : [{ type, attrs: newTypeAttributes }]
-
-  if (!canSplit(tr.doc, $from.pos, 2)) {
-    return false
-  }
-
-  if (dispatch) {
-    const { selection, storedMarks } = state
-    const { splittableMarks } = editor.extensionManager
-    const marks = storedMarks || (selection.$to.parentOffset && selection.$from.marks())
-
-    tr.split($from.pos, 2, types).scrollIntoView()
-
-    if (!marks || !dispatch) {
-      return true
-    }
-
-    const filteredMarks = marks.filter(mark => splittableMarks.includes(mark.type.name))
-
-    tr.ensureMarks(filteredMarks)
-  }
-
-  return true
-}

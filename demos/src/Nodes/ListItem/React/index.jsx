@@ -1,12 +1,10 @@
 import './styles.scss'
 
-import BulletList from '@tiptap/extension-bullet-list'
 import Document from '@tiptap/extension-document'
-import ListItem from '@tiptap/extension-list-item'
-import OrderedList from '@tiptap/extension-ordered-list'
+import { BulletList, ListItem, OrderedList } from '@tiptap/extension-list'
 import Paragraph from '@tiptap/extension-paragraph'
 import Text from '@tiptap/extension-text'
-import { EditorContent, useEditor } from '@tiptap/react'
+import { EditorContent, useEditor, useEditorState } from '@tiptap/react'
 import React from 'react'
 
 export default () => {
@@ -34,6 +32,16 @@ export default () => {
         </p>
       `,
   })
+  const editorState = useEditorState({
+    editor,
+    selector: ctx => ({
+      isBulletList: ctx.editor.isActive('bulletList') ?? false,
+      isOrderedList: ctx.editor.isActive('orderedList') ?? false,
+      canSplitListItem: ctx.editor.can().splitListItem('listItem') ?? false,
+      canSinkListItem: ctx.editor.can().sinkListItem('listItem') ?? false,
+      canLiftListItem: ctx.editor.can().liftListItem('listItem') ?? false,
+    }),
+  })
 
   if (!editor) {
     return null
@@ -41,36 +49,40 @@ export default () => {
 
   return (
     <>
-      <button
-        onClick={() => editor.chain().focus().toggleBulletList().run()}
-        className={editor.isActive('bulletList') ? 'is-active' : ''}
-      >
-        toggleBulletList
-      </button>
-      <button
-        onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        className={editor.isActive('orderedList') ? 'is-active' : ''}
-      >
-        toggleOrderedList
-      </button>
-      <button
-        onClick={() => editor.chain().focus().splitListItem('listItem').run()}
-        disabled={!editor.can().splitListItem('listItem')}
-      >
-        splitListItem
-      </button>
-      <button
-        onClick={() => editor.chain().focus().sinkListItem('listItem').run()}
-        disabled={!editor.can().sinkListItem('listItem')}
-      >
-        sinkListItem
-      </button>
-      <button
-        onClick={() => editor.chain().focus().liftListItem('listItem').run()}
-        disabled={!editor.can().liftListItem('listItem')}
-      >
-        liftListItem
-      </button>
+      <div className="control-group">
+        <div className="button-group">
+          <button
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            className={editorState.isBulletList ? 'is-active' : ''}
+          >
+            Toggle bullet list
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            className={editorState.isOrderedList ? 'is-active' : ''}
+          >
+            Toggle ordered list
+          </button>
+          <button
+            onClick={() => editor.chain().focus().splitListItem('listItem').run()}
+            disabled={!editorState.canSplitListItem}
+          >
+            Split list item
+          </button>
+          <button
+            onClick={() => editor.chain().focus().sinkListItem('listItem').run()}
+            disabled={!editorState.canSinkListItem}
+          >
+            Sink list item
+          </button>
+          <button
+            onClick={() => editor.chain().focus().liftListItem('listItem').run()}
+            disabled={!editorState.canLiftListItem}
+          >
+            Lift list item
+          </button>
+        </div>
+      </div>
 
       <EditorContent editor={editor} />
     </>

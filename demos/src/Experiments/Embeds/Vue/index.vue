@@ -1,16 +1,17 @@
 <template>
-  <div v-if="editor">
-    <button @click="addIframe">
-      add iframe
-    </button>
-
+  <div v-if="editor" class="container">
+    <div class="control-group">
+      <div class="button-group">
+        <button @click="addIframe">Add iFrame</button>
+      </div>
+    </div>
     <editor-content :editor="editor" />
   </div>
 </template>
 
 <script>
 import StarterKit from '@tiptap/starter-kit'
-import { Editor, EditorContent } from '@tiptap/vue-3'
+import { Editor, EditorContent } from '@tiptap/vue'
 
 import Iframe from './iframe.ts'
 
@@ -27,10 +28,7 @@ export default {
 
   mounted() {
     this.editor = new Editor({
-      extensions: [
-        StarterKit,
-        Iframe,
-      ],
+      extensions: [StarterKit, Iframe],
       content: `
         <p>Here is an exciting video:</p>
         <iframe src="https://www.youtube.com/embed/XIMLoLxmTDw" frameborder="0" allowfullscreen></iframe>
@@ -55,7 +53,7 @@ export default {
 </script>
 
 <style lang="scss">
-@use "sass:math";
+@use 'sass:math';
 .tiptap {
   > * + * {
     margin-top: 0.75em;
@@ -64,14 +62,14 @@ export default {
 
 .iframe-wrapper {
   position: relative;
-  padding-bottom: math.div(100,16)*9%;
+  padding-bottom: math.div(100, 16) * 9%;
   height: 0;
   overflow: hidden;
   width: 100%;
   height: auto;
 
   &.ProseMirror-selectednode {
-    outline: 3px solid #68CEF8;
+    outline: 3px solid #68cef8;
   }
 
   iframe {

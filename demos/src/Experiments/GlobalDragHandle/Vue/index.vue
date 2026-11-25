@@ -6,7 +6,7 @@
 
 <script>
 import StarterKit from '@tiptap/starter-kit'
-import { Editor, EditorContent } from '@tiptap/vue-3'
+import { Editor, EditorContent } from '@tiptap/vue'
 
 import DragHandle from './DragHandle.js'
 
@@ -23,22 +23,19 @@ export default {
 
   mounted() {
     this.editor = new Editor({
-      extensions: [
-        StarterKit,
-        DragHandle,
-      ],
+      extensions: [StarterKit, DragHandle],
       content: `
-        <p>paragraph 1</p>
-        <p>paragraph 2</p>
-        <p>paragraph 3</p>
+        <p>Paragraph 1</p>
+        <p>Paragraph 2</p>
+        <p>Paragraph 3</p>
         <ul>
-          <li>list item 1</li>
-          <li>list item 2</li>
+          <li>List item 1</li>
+          <li>List item 2</li>
         </ul>
-        <pre>code</pre>
+        <pre>Code</pre>
       `,
       onUpdate: () => {
-        // eslint-disable-next-line
+        // oxlint-disable-next-line
         console.log(this.editor.getHTML())
       },
     })
@@ -63,8 +60,8 @@ export default {
     content: '⠿';
     font-weight: 700;
     cursor: grab;
-    background:#0D0D0D10;
-    color: #0D0D0D50;
+    background: #0d0d0d10;
+    color: #0d0d0d50;
     border-radius: 0.25rem;
   }
 }
@@ -98,8 +95,8 @@ export default {
   }
 
   pre {
-    background: #0D0D0D;
-    color: #FFF;
+    background: #0d0d0d;
+    color: #fff;
     font-family: 'JetBrainsMono', monospace;
     padding: 0.75rem 1rem;
     border-radius: 0.5rem;
@@ -119,17 +116,17 @@ export default {
 
   blockquote {
     padding-left: 1rem;
-    border-left: 2px solid rgba(#0D0D0D, 0.1);
+    border-left: 2px solid rgba(#0d0d0d, 0.1);
   }
 
   hr {
     border: none;
-    border-top: 2px solid rgba(#0D0D0D, 0.1);
+    border-top: 2px solid rgba(#0d0d0d, 0.1);
     margin: 2rem 0;
   }
 }
 
 .ProseMirror-selectednode {
-  outline: 2px solid #70CFF8;
+  outline: 2px solid #70cff8;
 }
 </style>

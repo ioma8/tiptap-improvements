@@ -1,13 +1,12 @@
-import {
-  isMacOS,
-  Mark,
-  markInputRule,
-  markPasteRule,
-  mergeAttributes,
-} from '@tiptap/core'
+import { Mark, markInputRule, markPasteRule, mergeAttributes } from '@tiptap/core'
 
 export interface StrikeOptions {
-  HTMLAttributes: Record<string, any>,
+  /**
+   * HTML attributes to add to the strike element.
+   * @default {}
+   * @example { class: 'foo' }
+   */
+  HTMLAttributes: Record<string, any>
 }
 
 declare module '@tiptap/core' {
@@ -15,23 +14,37 @@ declare module '@tiptap/core' {
     strike: {
       /**
        * Set a strike mark
+       * @example editor.commands.setStrike()
        */
-      setStrike: () => ReturnType,
+      setStrike: () => ReturnType
       /**
        * Toggle a strike mark
+       * @example editor.commands.toggleStrike()
        */
-      toggleStrike: () => ReturnType,
+      toggleStrike: () => ReturnType
       /**
        * Unset a strike mark
+       * @example editor.commands.unsetStrike()
        */
-      unsetStrike: () => ReturnType,
+      unsetStrike: () => ReturnType
     }
   }
 }
 
-export const inputRegex = /(?:^|\s)((?:~~)((?:[^~]+))(?:~~))$/
-export const pasteRegex = /(?:^|\s)((?:~~)((?:[^~]+))(?:~~))/g
+/**
+ * Matches a strike to a ~~strike~~ on input.
+ */
+export const inputRegex = /(?:^|\s)(~~(?!\s+~~)((?:[^~]+))~~(?!\s+~~))$/
 
+/**
+ * Matches a strike to a ~~strike~~ on paste.
+ */
+export const pasteRegex = /(?:^|\s)(~~(?!\s+~~)((?:[^~]+))~~(?!\s+~~))/g
+
+/**
+ * This extension allows you to create strike text.
+ * @see https://www.tiptap.dev/api/marks/strike
+ */
 export const Strike = Mark.create<StrikeOptions>({
   name: 'strike',
 
@@ -64,30 +77,41 @@ export const Strike = Mark.create<StrikeOptions>({
     return ['s', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0]
   },
 
+  markdownTokenName: 'del',
+
+  parseMarkdown: (token, helpers) => {
+    // Convert 'del' token to strike mark
+    return helpers.applyMark('strike', helpers.parseInline(token.tokens || []))
+  },
+
+  renderMarkdown: (node, h) => {
+    return `~~${h.renderChildren(node)}~~`
+  },
+
   addCommands() {
     return {
-      setStrike: () => ({ commands }) => {
-        return commands.setMark(this.name)
-      },
-      toggleStrike: () => ({ commands }) => {
-        return commands.toggleMark(this.name)
-      },
-      unsetStrike: () => ({ commands }) => {
-        return commands.unsetMark(this.name)
-      },
+      setStrike:
+        () =>
+        ({ commands }) => {
+          return commands.setMark(this.name)
+        },
+      toggleStrike:
+        () =>
+        ({ commands }) => {
+          return commands.toggleMark(this.name)
+        },
+      unsetStrike:
+        () =>
+        ({ commands }) => {
+          return commands.unsetMark(this.name)
+        },
     }
   },
 
   addKeyboardShortcuts() {
-    const shortcuts: Record<string, () => boolean> = {}
-
-    if (isMacOS()) {
-      shortcuts['Mod-Shift-s'] = () => this.editor.commands.toggleStrike()
-    } else {
-      shortcuts['Ctrl-Shift-s'] = () => this.editor.commands.toggleStrike()
+    return {
+      'Mod-Shift-s': () => this.editor.commands.toggleStrike(),
     }
-
-    return shortcuts
   },
 
   addInputRules() {

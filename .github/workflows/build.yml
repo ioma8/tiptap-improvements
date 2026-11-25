@@ -1,158 +1,143 @@
-# Automate, customize, and execute your software development workflows right in your repository with GitHub Actions.
-# Documentation: https://docs.github.com/en/actions
+name: Verify
 
-name: build
+env:
+  NODE_VERSION: 24
+  VP_GIT_HOOKS: 0
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 on:
   push:
     branches:
       - main
-      - develop
+      - next
       - release/*
   pull_request:
     branches:
       - main
-      - develop
+      - next
+      - release/*
 
 jobs:
-  lint:
+  build-packages:
+    name: Build packages
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [16]
+    timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v3.5.3
+      - uses: actions/checkout@v7
 
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3.7.0
+      - uses: ./.github/actions/setup-env
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'true'
+          install: 'true'
 
-      - name: Load cached dependencies
-        uses: actions/cache@v3.3.1
-        id: cache
-        with:
-          path: |
-            **/node_modules
-            /home/runner/.cache/Cypress
-          key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('**/package-lock.json') }}
+      - name: Build packages
+        run: vp run build && vp run build:demos
 
-      - name: Install dependencies
-        id: install-dependencies
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: npm install
+      - name: Check package exports
+        run: vp run check:package-exports
 
-      #    - name: Fix code style linting errors
-      #      id: lint-fix
-      #      run: npm run lint:fix
-      #      continue-on-error: true
-      #
-      #    - name: Commit fixed linting errors
-      #      id: commit
-      #      uses: stefanzweifel/git-auto-commit-action@v4
-      #      with:
-      #        commit_message: "ci: fix code style linting errors"
-
-      - name: Lint code
-        id: lint
-        run: npm run lint
-
-  test:
+  check-linting-formatting:
+    name: Check linting & formatting
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [16]
-        test-spec:
-          - { name: "Integration", spec: "./tests/cypress/integration/**/*.spec.{js,ts}" }
-          #- { name: "Demos/Commands", spec: "./demos/src/Commands/**/*.spec.{js,ts}" }
-          - { name: "Demos/Examples", spec: "./demos/src/Examples/**/*.spec.{js,ts}" }
-          - { name: "Demos/Experiments", spec: "./demos/src/Experiments/**/*.spec.{js,ts}" }
-          - { name: "Demos/Extensions", spec: "./demos/src/Extensions/**/*.spec.{js,ts}" }
-          - { name: "Demos/GuideContent", spec: "./demos/src/GuideContent/**/*.spec.{js,ts}" }
-          - { name: "Demos/GuideGettingStarted", spec: "./demos/src/GuideGettingStarted/**/*.spec.{js,ts}" }
-          #- { name: "Demos/GuideNodeViews", "./demos/src/GuideNodeViews/**/*.spec.{js,ts}" }
-          - { name: "Demos/Marks", spec: "./demos/src/Marks/**/*.spec.{js,ts}" }
-          - { name: "Demos/Nodes", spec: "./demos/src/Nodes/**/*.spec.{js,ts}" }
-          #- { name: "Demos/Overview", spec: "./demos/src/Overview/**/*.spec.{js,ts}" }
+    timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v3.5.3
+      - uses: actions/checkout@v7
 
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3.7.0
+      - uses: ./.github/actions/setup-env
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'true'
+          install: 'true'
 
-      - name: Install dependencies
-        id: install-dependencies
-        run: npm install
+      - name: Run linting and formatting checks
+        run: vp check
 
-      - name: Try to build the packages
-        id: build-packages
-        run: npm run build:pm
+  run-unit-tests:
+    name: Run unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
 
-      - name: Test ${{ matrix.test-spec.name }}
-        id: cypress
-        uses: cypress-io/github-action@v5.8.3
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup-env
         with:
-          cache-key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('**/package-lock.json') }}
-          start: npm run start
-          wait-on: 'http://localhost:3000'
-          spec: ${{ matrix.test-spec.spec }}
-          project: ./tests
-          browser: chrome
-          quiet: true
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'true'
+          install: 'true'
 
-      - name: Export screenshots (on failure only)
-        uses: actions/upload-artifact@v3.1.2
+      - name: Run unit tests
+        run: vp test
+
+  run-e2e-tests:
+    name: Run e2e tests (shard ${{ matrix.shard }}/${{ matrix.total }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+        total: [4]
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup-env
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'true'
+          install: 'true'
+
+      - uses: ./.github/actions/setup-playwright
+
+      - name: Run Playwright tests
+        run: vp exec playwright test --project=chromium --shard=${{ matrix.shard }}/${{ matrix.total }}
+
+      # Skipped on cancel or timeout: the run is stale or the blob incomplete
+      - name: Upload blob report
         if: failure()
+        uses: actions/upload-artifact@v7
         with:
-          name: cypress-screenshots
-          path: tests/cypress/screenshots
+          name: e2e-blob-report-${{ matrix.shard }}
+          path: blob-report
           retention-days: 7
 
-      - name: Export screen recordings (on failure only)
-        uses: actions/upload-artifact@v3.1.2
-        if: failure()
-        with:
-          name: cypress-videos
-          path: tests/cypress/videos
-          retention-days: 7
-
-  build:
+  merge-e2e-reports:
+    name: Merge e2e reports
     runs-on: ubuntu-latest
-
-    needs: lint
-
-    strategy:
-      matrix:
-        node-version: [16]
+    needs: run-e2e-tests
+    if: ${{ !cancelled() && needs.run-e2e-tests.result == 'failure' }}
+    timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v3.5.3
+      - uses: actions/checkout@v7
 
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3.7.0
+      - uses: ./.github/actions/setup-env
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'true'
+          install: 'true'
 
-      - name: Load cached dependencies
-        uses: actions/cache@v3.3.1
-        id: cache
+      - name: Download blob reports
+        uses: actions/download-artifact@v8
         with:
-          path: |
-            **/node_modules
-            /home/runner/.cache/Cypress
-          key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('**/package-lock.json') }}
+          path: all-blob-reports
+          pattern: e2e-blob-report-*
+          merge-multiple: true
 
-      - name: Install dependencies
-        id: install-dependencies
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: npm install
+      - name: Merge into HTML report
+        if: ${{ hashFiles('all-blob-reports/**') != '' }}
+        run: vp exec playwright merge-reports --reporter html ./all-blob-reports
 
-      - name: Try to build the packages
-        id: build-packages
-        run: npm run build:ci
+      - name: Upload merged HTML report
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-html-report
+          path: playwright-report
+          retention-days: 14

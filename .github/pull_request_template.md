@@ -1,30 +1,21 @@
-## Please describe your changes
+## Fixes
 
-[add a description of your changes here]
+<!-- Use GitHub keywords to link the issue or issues fixed by this PR, for example: Fixes #123 or Closes #456. -->
 
-## How did you accomplish your changes
+## Changes and Review
 
-[add a detailed description of how you accomplished your changes here]
-
-## How have you tested your changes
-
-[add a detailed description of how you tested your changes here]
-
-## How can we verify your changes
-
-[add a detailed description of how we can verify your changes here]
-
-## Remarks
-
-[add any additional remarks here]
+<!-- Explain what changed, why it changed, and how reviewers can verify it. -->
+<!-- Keep this section short: use 2–4 short sentences or a few bullets. Do not write a technical deep dive, a full implementation explanation, or a large wall of text. -->
 
 ## Checklist
 
-- [ ] The changes are not breaking the editor
-- [ ] Added tests where possible
-- [ ] Followed the guidelines
-- [ ] Fixed linting issues
+- [ ] I have added a [changeset](https://github.com/changesets/changesets) if necessary.
+- [ ] I have added tests if possible.
+- [ ] I have made sure to test my changes myself.
+- [ ] This is a critical bug or security fix that also needs to land on the current stable release (see [Branching](https://github.com/ueberdosis/tiptap/blob/main/CONTRIBUTING.md#branching) in CONTRIBUTING.md).
 
-## Related issues
+### Responsibility
 
-[add a link to the related issues here]
+<!-- Check this yourself after reviewing and understanding the changes, including any AI-generated code. -->
+
+- [ ] I have reviewed and understand these changes, and I take responsibility for this PR, even if an AI agent created it.

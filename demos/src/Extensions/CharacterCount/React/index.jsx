@@ -1,15 +1,22 @@
 import './styles.scss'
 
-import CharacterCount from '@tiptap/extension-character-count'
 import Document from '@tiptap/extension-document'
 import Paragraph from '@tiptap/extension-paragraph'
 import Text from '@tiptap/extension-text'
-import { EditorContent, useEditor } from '@tiptap/react'
-import React from 'react'
+import { CharacterCount } from '@tiptap/extensions'
+import { EditorContent, useEditor, useEditorState } from '@tiptap/react'
+import { useState } from 'react'
 
-const limit = 280
+import { CharacterCountOutput } from './CharacterCountOutput.jsx'
+
+const limits = [
+  { value: 140, label: '140 characters' },
+  { value: 280, label: '280 characters' },
+  { value: null, label: 'No limit' },
+]
 
 export default () => {
+  const [limit, setLimit] = useState(280)
   const editor = useEditor({
     extensions: [
       Document,
@@ -26,19 +33,44 @@ export default () => {
       `,
   })
 
+  const { charactersCount, wordsCount } = useEditorState({
+    editor,
+    selector: context => ({
+      charactersCount: context.editor.storage.characterCount.characters(),
+      wordsCount: context.editor.storage.characterCount.words(),
+    }),
+  })
+
   if (!editor) {
     return null
   }
 
   return (
-    <div>
+    <>
+      <div className="control-group">
+        <div className="button-group">
+          {limits.map(({ value, label }) => (
+            <button
+              key={label}
+              className={limit === value ? 'is-active' : ''}
+              onClick={() => {
+                editor.commands.setCharacterLimit(value)
+                setLimit(value)
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
       <EditorContent editor={editor} />
 
-      <div className="character-count">
-        {editor.storage.characterCount.characters()}/{limit} characters
-        <br />
-        {editor.storage.characterCount.words()} words
-      </div>
-    </div>
+      <CharacterCountOutput
+        charactersCount={charactersCount}
+        wordsCount={wordsCount}
+        limit={limit}
+        limitLabel={limit ?? 'unlimited'}
+      />
+    </>
   )
 }

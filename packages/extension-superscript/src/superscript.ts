@@ -1,7 +1,13 @@
 import { Mark, mergeAttributes } from '@tiptap/core'
+import type { StyleParseRule } from '@tiptap/pm/model'
 
 export interface SuperscriptExtensionOptions {
-  HTMLAttributes: Object,
+  /**
+   * HTML attributes to add to the superscript element.
+   * @default {}
+   * @example { class: 'foo' }
+   */
+  HTMLAttributes: Record<string, any>
 }
 
 declare module '@tiptap/core' {
@@ -9,20 +15,27 @@ declare module '@tiptap/core' {
     superscript: {
       /**
        * Set a superscript mark
+       * @example editor.commands.setSuperscript()
        */
-      setSuperscript: () => ReturnType,
+      setSuperscript: () => ReturnType
       /**
        * Toggle a superscript mark
+       * @example editor.commands.toggleSuperscript()
        */
-      toggleSuperscript: () => ReturnType,
+      toggleSuperscript: () => ReturnType
       /**
        * Unset a superscript mark
+       *  @example editor.commands.unsetSuperscript()
        */
-      unsetSuperscript: () => ReturnType,
+      unsetSuperscript: () => ReturnType
     }
   }
 }
 
+/**
+ * This extension allows you to create superscript text.
+ * @see https://www.tiptap.dev/api/marks/superscript
+ */
 export const Superscript = Mark.create<SuperscriptExtensionOptions>({
   name: 'superscript',
 
@@ -48,7 +61,7 @@ export const Superscript = Mark.create<SuperscriptExtensionOptions>({
           // If it falls through we’ll match, and this mark will be applied.
           return null
         },
-      },
+      } as StyleParseRule,
     ]
   },
 
@@ -58,15 +71,21 @@ export const Superscript = Mark.create<SuperscriptExtensionOptions>({
 
   addCommands() {
     return {
-      setSuperscript: () => ({ commands }) => {
-        return commands.setMark(this.name)
-      },
-      toggleSuperscript: () => ({ commands }) => {
-        return commands.toggleMark(this.name)
-      },
-      unsetSuperscript: () => ({ commands }) => {
-        return commands.unsetMark(this.name)
-      },
+      setSuperscript:
+        () =>
+        ({ commands }) => {
+          return commands.setMark(this.name)
+        },
+      toggleSuperscript:
+        () =>
+        ({ commands }) => {
+          return commands.toggleMark(this.name)
+        },
+      unsetSuperscript:
+        () =>
+        ({ commands }) => {
+          return commands.unsetMark(this.name)
+        },
     }
   },
 

@@ -48,9 +48,8 @@ export default Node.create({
 
       dom.classList.add('node-view')
 
-      const label = document.createElement('span')
+      const label = document.createElement('label')
 
-      label.classList.add('label')
       label.innerHTML = 'Node view'
 
       const content = document.createElement('div')
@@ -62,9 +61,11 @@ export default Node.create({
       button.innerHTML = `This button has been clicked ${node.attrs.count} times.`
       button.addEventListener('click', () => {
         if (typeof getPos === 'function') {
-          view.dispatch(view.state.tr.setNodeMarkup(getPos(), undefined, {
-            count: node.attrs.count + 1,
-          }))
+          view.dispatch(
+            view.state.tr.setNodeMarkup(getPos(), undefined, {
+              count: node.attrs.count + 1,
+            }),
+          )
 
           editor.commands.focus()
         }

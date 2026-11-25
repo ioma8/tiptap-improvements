@@ -1,57 +1,84 @@
+import type { EditorState } from '@tiptap/pm/state'
 import { Plugin, PluginKey, Selection } from '@tiptap/pm/state'
 
 import { CommandManager } from '../CommandManager.js'
 import { Extension } from '../Extension.js'
 import { createChainableState } from '../helpers/createChainableState.js'
+import { isNodeEmpty } from '../helpers/isNodeEmpty.js'
 import { isiOS } from '../utilities/isiOS.js'
 import { isMacOS } from '../utilities/isMacOS.js'
+
+import { createAndroidDeletePlugin } from './createAndroidDeletePlugin.js'
+
+/** Checks if a non-empty selection spans the whole document. */
+function isWholeDocumentSelected(state: EditorState) {
+  const { empty, from, to } = state.selection
+
+  if (empty) {
+    return false
+  }
+
+  return from === Selection.atStart(state.doc).from && to === Selection.atEnd(state.doc).to
+}
 
 export const Keymap = Extension.create({
   name: 'keymap',
 
   addKeyboardShortcuts() {
-    const handleBackspace = () => this.editor.commands.first(({ commands }) => [
-      () => commands.undoInputRule(),
+    const handleBackspace = () =>
+      this.editor.commands.first(({ commands }) => [
+        () => commands.undoInputRule(),
 
-      // maybe convert first text block node to default node
-      () => commands.command(({ tr }) => {
-        const { selection, doc } = tr
-        const { empty, $anchor } = selection
-        const { pos, parent } = $anchor
-        const $parentPos = $anchor.parent.isTextblock ? tr.doc.resolve(pos - 1) : $anchor
-        const parentIsIsolating = $parentPos.parent.type.spec.isolating
+        // maybe convert first text block node to default node
+        () =>
+          commands.command(({ tr }) => {
+            const { selection, doc } = tr
+            const { empty, $anchor } = selection
+            const { pos, parent } = $anchor
+            const $parentPos =
+              $anchor.parent.isTextblock && pos > 0 ? tr.doc.resolve(pos - 1) : $anchor
+            const parentIsIsolating = $parentPos.parent.type.spec.isolating
 
-        const parentPos = $anchor.pos - $anchor.parentOffset
+            const parentPos = $anchor.pos - $anchor.parentOffset
 
-        const isAtStart = (parentIsIsolating && $parentPos.parent.childCount === 1)
-          ? parentPos === $anchor.pos
-          : Selection.atStart(doc).from === pos
+            const isAtStart =
+              parentIsIsolating && $parentPos.parent.childCount === 1
+                ? parentPos === $anchor.pos
+                : Selection.atStart(doc).from === pos
 
-        if (!empty || !isAtStart || !parent.type.isTextblock || parent.textContent.length) {
-          return false
-        }
+            if (
+              !empty ||
+              !parent.type.isTextblock ||
+              parent.textContent.length ||
+              !isAtStart ||
+              (isAtStart && $anchor.parent.type.name === 'paragraph') // prevent clearNodes when no nodes to clear, otherwise history stack is appended
+            ) {
+              return false
+            }
 
-        return commands.clearNodes()
-      }),
+            return commands.clearNodes()
+          }),
 
-      () => commands.deleteSelection(),
-      () => commands.joinBackward(),
-      () => commands.selectNodeBackward(),
-    ])
+        () => commands.deleteSelection(),
+        () => commands.joinBackward(),
+        () => commands.selectNodeBackward(),
+      ])
 
-    const handleDelete = () => this.editor.commands.first(({ commands }) => [
-      () => commands.deleteSelection(),
-      () => commands.deleteCurrentNode(),
-      () => commands.joinForward(),
-      () => commands.selectNodeForward(),
-    ])
+    const handleDelete = () =>
+      this.editor.commands.first(({ commands }) => [
+        () => commands.deleteSelection(),
+        () => commands.deleteCurrentNode(),
+        () => commands.joinForward(),
+        () => commands.selectNodeForward(),
+      ])
 
-    const handleEnter = () => this.editor.commands.first(({ commands }) => [
-      () => commands.newlineInCode(),
-      () => commands.createParagraphNear(),
-      () => commands.liftEmptyBlock(),
-      () => commands.splitBlock(),
-    ])
+    const handleEnter = () =>
+      this.editor.commands.first(({ commands }) => [
+        () => commands.newlineInCode(),
+        () => commands.createParagraphNear(),
+        () => commands.liftEmptyBlock(),
+        () => commands.splitBlock(),
+      ])
 
     const baseKeymap = {
       Enter: handleEnter,
@@ -89,6 +116,7 @@ export const Keymap = Extension.create({
 
   addProseMirrorPlugins() {
     return [
+      createAndroidDeletePlugin(),
       // With this plugin we check if the whole document was selected and deleted.
       // In this case we will additionally call `clearNodes()` to convert e.g. a heading
       // to a paragraph if necessary.
@@ -97,23 +125,27 @@ export const Keymap = Extension.create({
       new Plugin({
         key: new PluginKey('clearDocument'),
         appendTransaction: (transactions, oldState, newState) => {
-          const docChanges = transactions.some(transaction => transaction.docChanged)
-            && !oldState.doc.eq(newState.doc)
-
-          if (!docChanges) {
+          if (transactions.some(tr => tr.getMeta('composition'))) {
             return
           }
 
-          const { empty, from, to } = oldState.selection
-          const allFrom = Selection.atStart(oldState.doc).from
-          const allEnd = Selection.atEnd(oldState.doc).to
-          const allWasSelected = from === allFrom && to === allEnd
+          const docChanges =
+            transactions.some(transaction => transaction.docChanged) &&
+            !oldState.doc.eq(newState.doc)
 
-          if (empty || !allWasSelected) {
+          const ignoreTr = transactions.some(transaction =>
+            transaction.getMeta('preventClearDocument'),
+          )
+
+          if (!docChanges || ignoreTr) {
             return
           }
 
-          const isEmpty = newState.doc.textBetween(0, newState.doc.content.size, ' ', ' ').length === 0
+          if (!isWholeDocumentSelected(oldState)) {
+            return
+          }
+
+          const isEmpty = isNodeEmpty(newState.doc)
 
           if (!isEmpty) {
             return
@@ -131,11 +163,12 @@ export const Keymap = Extension.create({
 
           commands.clearNodes()
 
-          if (!tr.steps.length) {
+          if (!tr.steps.length && !newState.storedMarks) {
             return
           }
 
-          return tr
+          // Don't carry marks of the deleted text into the empty document
+          return tr.setStoredMarks(null)
         },
       }),
     ]

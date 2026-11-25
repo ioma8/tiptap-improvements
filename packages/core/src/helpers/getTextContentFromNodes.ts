@@ -1,5 +1,11 @@
-import { ResolvedPos } from '@tiptap/pm/model'
+import type { ResolvedPos } from '@tiptap/pm/model'
 
+/**
+ * Returns the text content of a resolved prosemirror position
+ * @param $from The resolved position to get the text content from
+ * @param maxMatch The maximum number of characters to match
+ * @returns The text content
+ */
 export const getTextContentFromNodes = ($from: ResolvedPos, maxMatch = 500) => {
   let textBefore = ''
 
@@ -9,16 +15,18 @@ export const getTextContentFromNodes = ($from: ResolvedPos, maxMatch = 500) => {
     Math.max(0, sliceEndPos - maxMatch),
     sliceEndPos,
     (node, pos, parent, index) => {
-      const chunk = node.type.spec.toText?.({
-        node,
-        pos,
-        parent,
-        index,
-      })
-        || node.textContent
-        || '%leaf%'
+      const chunk =
+        node.type.spec.toText?.({
+          node,
+          pos,
+          parent,
+          index,
+        }) ||
+        node.textContent ||
+        '%leaf%'
 
-      textBefore += chunk.slice(0, Math.max(0, sliceEndPos - pos))
+      textBefore +=
+        node.isAtom && !node.isText ? chunk : chunk.slice(0, Math.max(0, sliceEndPos - pos))
     },
   )
 

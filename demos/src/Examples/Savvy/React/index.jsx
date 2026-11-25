@@ -13,18 +13,10 @@ import { SmilieReplacer } from './SmilieReplacer.ts'
 
 export default () => {
   const editor = useEditor({
-    extensions: [
-      Document,
-      Paragraph,
-      Text,
-      Code,
-      Typography,
-      ColorHighlighter,
-      SmilieReplacer,
-    ],
+    extensions: [Document, Paragraph, Text, Code, Typography, ColorHighlighter, SmilieReplacer],
     content: `
       <p>
-        → With the Typography extension, tiptap understands »what you mean« and adds correct characters to your text — it’s like a “typography nerd” on your side.
+        → With the Typography extension, Tiptap understands »what you mean« and adds correct characters to your text — it’s like a “typography nerd” on your side.
       </p>
       <p>
         Try it out and type <code>(c)</code>, <code>-></code>, <code>>></code>, <code>1/2</code>, <code>!=</code>, <code>--</code> or <code>1x1</code> here:

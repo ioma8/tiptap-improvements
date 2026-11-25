@@ -1,49 +1,67 @@
 import { Plugin, PluginKey } from '@tiptap/pm/state'
-import * as Y from 'yjs'
+import { DecorationSet } from '@tiptap/pm/view'
+import type { Transaction } from 'yjs'
+import type { AnnotationPluginOptions } from './types/Annotation.js'
+import { createAnnotationDecorations } from './createAnnotationDecorations.js'
+import { resolveAnnotations } from './resolveAnnotations.js'
 
-import { AnnotationState } from './AnnotationState.js'
+const AnnotationPluginKey = new PluginKey<DecorationSet>('annotation')
 
-export const AnnotationPluginKey = new PluginKey('annotation')
+export const AnnotationPlugin = (options: AnnotationPluginOptions) =>
+  new Plugin<DecorationSet>({
+    key: AnnotationPluginKey,
 
-export interface AnnotationPluginOptions {
-  HTMLAttributes: {
-    [key: string]: any
-  }
-  onUpdate: (items: [any?]) => {}
-  map: Y.Map<any>
-  instance: string
-}
+    state: {
+      init: () => DecorationSet.empty,
+      apply(transaction, decorations, _oldState, state) {
+        if (transaction.getMeta(AnnotationPluginKey)) {
+          return createAnnotationDecorations(state, resolveAnnotations(state, options.map))
+        }
 
-export const AnnotationPlugin = (options: AnnotationPluginOptions) => new Plugin({
-  key: AnnotationPluginKey,
-
-  state: {
-    init() {
-      return new AnnotationState({
-        HTMLAttributes: options.HTMLAttributes,
-        map: options.map,
-        instance: options.instance,
-      })
+        return decorations.map(transaction.mapping, transaction.doc)
+      },
     },
-    apply(transaction, pluginState, oldState, newState) {
-      return pluginState.apply(transaction, newState)
+
+    props: {
+      decorations: state => AnnotationPluginKey.getState(state),
     },
-  },
 
-  props: {
-    decorations(state) {
-      const { decorations } = this.getState(state)
-      const { selection } = state
+    view(view) {
+      let queued = false
+      let destroyed = false
+      const refresh = () => {
+        if (queued) {
+          return
+        }
 
-      if (!selection.empty) {
-        return decorations
+        queued = true
+        // Resolve after the binding has synchronized XML and identity transfers.
+        queueMicrotask(() => {
+          queued = false
+
+          if (destroyed) {
+            return
+          }
+
+          view.dispatch(view.state.tr.setMeta(AnnotationPluginKey, true))
+          options.onUpdate(resolveAnnotations(view.state, options.map))
+        })
       }
 
-      const annotations = this.getState(state).annotationsAt(selection.from)
+      const onChange = (transaction: Transaction) => {
+        if (transaction.changed.size > 0) {
+          refresh()
+        }
+      }
 
-      options.onUpdate(annotations)
+      options.document.on('afterTransaction', onChange)
+      refresh()
 
-      return decorations
+      return {
+        destroy() {
+          destroyed = true
+          options.document.off('afterTransaction', onChange)
+        },
+      }
     },
-  },
-})
+  })

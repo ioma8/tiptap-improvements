@@ -3,76 +3,123 @@ import react from '@vitejs/plugin-react'
 import vue from '@vitejs/plugin-vue'
 import fg from 'fast-glob'
 import fs from 'fs'
-import {
-  basename,
-  dirname,
-  join,
-  resolve,
-} from 'path'
+import { basename, dirname, join, resolve } from 'path'
 import { v4 as uuid } from 'uuid'
-import { defineConfig } from 'vite'
-
-// import checker from 'vite-plugin-checker'
+import { defineConfig } from 'vite-plus'
 
 const getPackageDependencies = () => {
-  const paths: Array<{ find: string, replacement: any }> = []
+  const paths: Array<{ find: string; replacement: any }> = []
 
-  paths.push({
-    find: 'yjs',
-    replacement: resolve('../node_modules/yjs/src/index.js'),
-  })
+  function collectPackageInformation(path: string) {
+    const packagesPath = resolve(import.meta.dirname, '..', path)
+    // Windows absolute paths contain backslashes; normalize them before appending wildcards.
+    const packagesGlob = (suffix: string) =>
+      fg.sync(`${fg.convertPathToPattern(packagesPath)}${suffix}`, { onlyDirectories: true })
 
-  fg.sync('../packages/*', { onlyDirectories: true })
-    .map(name => name.replace('../packages/', ''))
-    .forEach(name => {
-      if (name === 'pm') {
-        fg.sync(`../packages/${name}/*`, { onlyDirectories: true })
-          .forEach(subName => {
-            const subPkgName = subName.replace(`../packages/${name}/`, '')
+    packagesGlob('/*')
+      .map(name => basename(name))
+      .forEach(name => {
+        if (name === 'pm') {
+          packagesGlob(`/${name}/*`).forEach(subName => {
+            const subPkgName = basename(subName)
 
-            paths.push({ find: `@tiptap/${name}/${subPkgName}`, replacement: resolve(`../packages/${name}/${subPkgName}/index.ts`) })
+            if (subPkgName === 'dist' || subPkgName === 'node_modules') {
+              return
+            }
+
+            paths.push({
+              find: `@tiptap/${name}/${subPkgName}`,
+              replacement: resolve(packagesPath, name, subPkgName, 'index.ts'),
+            })
           })
-      } else {
-        paths.push({ find: `@tiptap/${name}`, replacement: resolve(`../packages/${name}/src/index.ts`) })
-      }
-    })
+        } else if (
+          name === 'extension-text-style' ||
+          name === 'extension-table' ||
+          name === 'extensions' ||
+          name === 'extension-list' ||
+          name === 'react' ||
+          name === 'vue'
+        ) {
+          packagesGlob(`/${name}/src/*`).forEach(subName => {
+            const subPkgName = basename(subName)
+
+            paths.push({
+              find: `@tiptap/${name}/${subPkgName}`,
+              replacement: resolve(packagesPath, name, 'src', subPkgName, 'index.ts'),
+            })
+          })
+          paths.push({
+            find: `@tiptap/${name}`,
+            replacement: resolve(packagesPath, name, 'src/index.ts'),
+          })
+        } else {
+          paths.push({
+            find: `@tiptap/${name}`,
+            replacement: resolve(packagesPath, name, 'src/index.ts'),
+          })
+        }
+      })
+  }
+
+  collectPackageInformation('packages')
+
+  // Handle the JSX runtime alias
+  paths.unshift({
+    find: '@tiptap/core/jsx-runtime',
+    replacement: resolve(import.meta.dirname, '../packages/core/src/jsx-runtime.ts'),
+  })
+  paths.unshift({
+    find: '@tiptap/core/jsx-dev-runtime',
+    replacement: resolve(import.meta.dirname, '../packages/core/src/jsx-runtime.ts'),
+  })
 
   return paths
 }
 
-const includeDependencies = fs.readFileSync('./includeDependencies.txt')
+const dedupeDeps = fs
+  .readFileSync(resolve(import.meta.dirname, 'dedupeDeps.txt'))
   .toString()
   .replace(/\r\n/g, '\n')
   .split('\n')
   .filter(value => value)
 
 export default defineConfig({
-  optimizeDeps: {
-    include: includeDependencies,
+  server: {
+    port: 3000,
+  },
+  preview: {
+    port: 3000,
   },
 
   build: {
-    rollupOptions: {
+    rolldownOptions: {
       input: fg.sync('./**/index.html', {
-        ignore: ['dist'],
+        absolute: true,
+        cwd: import.meta.dirname,
+        ignore: ['dist', 'node_modules'],
       }),
     },
+  },
+
+  worker: {
+    format: 'es',
   },
 
   plugins: [
     // checker({ typescript: { tsconfigPath: './tsconfig.base.json' } }),
     // checker({ typescript: { tsconfigPath: './tsconfig.react.json' } }),
-    // checker({ typescript: { tsconfigPath: './tsconfig.vue-2.json' } }),
-    // checker({ typescript: { tsconfigPath: './tsconfig.vue-3.json' } }),
+    // @ts-ignore
     vue(),
+    // @ts-ignore
     react(),
+    // @ts-ignore
     svelte(),
 
     {
       name: 'html-transform',
       transformIndexHtml: {
-        enforce: 'pre',
-        transform(html: string, context) {
+        order: 'pre',
+        handler(html: string, context) {
           const dir = dirname(context.path)
           const data = dir.split('/')
 
@@ -204,19 +251,17 @@ export default defineConfig({
       },
       load(id) {
         if (id === '@demos') {
-          const demos = fg.sync('./src/*/*', { onlyDirectories: true })
-            .map(demoPath => {
-              const name = demoPath.replace('./src/', '')
-              const tabs = fg.sync(`./src/${name}/*`, { onlyDirectories: true })
-                .map(tabPath => ({
-                  name: basename(tabPath),
-                }))
+          const demos = fg.sync('./src/*/*', { onlyDirectories: true }).map(demoPath => {
+            const name = demoPath.replace('./src/', '')
+            const tabs = fg.sync(`./src/${name}/*`, { onlyDirectories: true }).map(tabPath => ({
+              name: basename(tabPath),
+            }))
 
-              return {
-                name,
-                tabs,
-              }
-            })
+            return {
+              name,
+              tabs,
+            }
+          })
 
           return `export const demos = ${JSON.stringify(demos)}`
         }
@@ -233,16 +278,14 @@ export default defineConfig({
       load(id) {
         if (id.startsWith('source!')) {
           const path = id.split('!!')[0].replace('source!', '')
-          const ignore = [
-            '**/*.spec.js',
-            '**/*.spec.ts',
-          ]
+          const ignore = ['**/*.spec.js', '**/*.spec.ts', 'node_modules/**']
 
           if (!path.endsWith('/JS')) {
             ignore.push('**/index.html')
           }
 
-          const files = fg.sync(`${path}/**/*`, { ignore })
+          const files = fg
+            .sync(`${path}/**/*`, { ignore })
             .map(filePath => {
               const name = filePath.replace(`${path}/`, '')
 
@@ -301,5 +344,6 @@ export default defineConfig({
 
   resolve: {
     alias: getPackageDependencies(),
+    dedupe: dedupeDeps,
   },
 })
