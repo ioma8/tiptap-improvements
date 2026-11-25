@@ -131,12 +131,7 @@ export function autolink(options: AutolinkOptions): Plugin {
         // One path for every edit: scan from the start of that textblock through
         // the end of the changed range, with hard breaks and block boundaries as
         // spaces, and take the word immediately before trailing whitespace.
-        const textBeforeWhitespace = newState.doc.textBetween(
-          textBlock.pos,
-          newRange.to,
-          ' ',
-          ' ',
-        )
+        const textBeforeWhitespace = newState.doc.textBetween(textBlock.pos, newRange.to, ' ', ' ')
 
         if (textBeforeWhitespace) {
           // A shared /g regexp starts at lastIndex. Keep each scan at the beginning.
